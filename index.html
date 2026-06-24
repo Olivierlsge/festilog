@@ -1,0 +1,3388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FESTIlog</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#0F1923;--surface:#1A2535;--surface2:#243044;--border:#2E3D52;
+  --orange:#FF6B2B;--orange-dim:rgba(255,107,43,0.15);
+  --green:#2ECC8A;--green-dim:rgba(46,204,138,0.12);
+  --red:#E8445A;--red-dim:rgba(232,68,90,0.12);
+  --blue:#4A9EFF;--blue-dim:rgba(74,158,255,0.12);
+  --purple:#A78BFA;--purple-dim:rgba(167,139,250,0.12);
+  --yellow:#F5C542;--yellow-dim:rgba(245,197,66,0.12);
+  --teal:#2DD4BF;--teal-dim:rgba(45,212,191,0.12);
+  --text:#E8EDF4;--text-dim:#7A8CA0;--text-muted:#4A5A6B;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;display:flex;flex-direction:column;}
+
+/* ── HEADER ── */
+header{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 14px;display:flex;align-items:center;gap:10px;
+  height:52px;flex-shrink:0;position:relative;z-index:50;
+}
+.logo{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--orange);letter-spacing:.04em;}
+.logo span{color:var(--text-muted);font-weight:400;}
+.header-right{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.sync-pill{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid;cursor:pointer;white-space:nowrap;}
+.sync-pill.connected{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.sync-pill.disconnected{background:var(--yellow-dim);border-color:var(--yellow);color:var(--yellow);}
+.sync-pill.syncing{background:var(--blue-dim);border-color:var(--blue);color:var(--blue);}
+.sync-pill.error{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+.sync-dot.pulse{animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* ── NAV ── */
+nav{
+  background:var(--surface);border-bottom:2px solid var(--border);
+  display:flex;overflow-x:auto;flex-shrink:0;
+  -webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;
+  scrollbar-width:none;gap:0;
+}
+nav::-webkit-scrollbar{display:none;}
+.tab{
+  flex-shrink:0;scroll-snap-align:start;
+  padding:12px 16px;cursor:pointer;
+  color:var(--text-muted);font-size:13px;font-weight:600;
+  border-bottom:3px solid transparent;transition:all .15s;
+  display:flex;align-items:center;gap:7px;white-space:nowrap;
+  user-select:none;-webkit-user-select:none;
+}
+.tab:active{background:rgba(255,255,255,.04);}
+.tab.active{color:var(--text);border-bottom-color:var(--orange);}
+.tab-icon{font-size:15px;line-height:1;}
+.pending-badge{background:var(--yellow);color:#1a1000;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+
+/* ── MAIN SCROLL ── */
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;padding-bottom:32px;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card-title-icon{font-size:14px;}
+.card-accent{border-left:3px solid var(--orange);}
+.card-accent-green{border-left:3px solid var(--green);}
+.card-accent-blue{border-left:3px solid var(--blue);}
+.card-accent-red{border-left:3px solid var(--red);}
+.card-accent-teal{border-left:3px solid var(--teal);}
+
+/* ── FORMS ── */
+.form-stack{display:flex;flex-direction:column;gap:12px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full{grid-column:1/-1;}
+label{font-size:11px;color:var(--text-dim);font-weight:600;letter-spacing:.03em;}
+select,input[type="number"],input[type="text"]{
+  background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;
+  color:var(--text);padding:11px 13px;font-size:15px;
+  font-family:'Inter',sans-serif;outline:none;transition:border-color .15s;width:100%;
+  -webkit-appearance:none;appearance:none;
+}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A8CA0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;}
+select:focus,input:focus{border-color:var(--orange);}
+select option{background:var(--surface2);}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:13px 20px;border-radius:10px;border:none;cursor:pointer;
+  font-size:15px;font-weight:700;font-family:'Inter',sans-serif;
+  transition:all .15s;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--orange);color:white;}
+.btn-green{background:var(--green);color:#0a1f15;}
+.btn-red{background:var(--red);color:white;}
+.btn-ghost{background:var(--surface2);color:var(--text-dim);border:1.5px solid var(--border);}
+.btn-purple{background:var(--purple);color:#1a0f40;}
+.btn-yellow{background:var(--yellow);color:#1a1000;}
+.btn-teal{background:var(--teal);color:#051a18;}
+.btn-blue{background:var(--blue);color:#030d1a;}
+.btn-sm{padding:8px 14px;font-size:13px;border-radius:7px;width:auto;}
+.btn-icon{width:auto;padding:11px 14px;}
+.btn-row{display:flex;gap:10px;margin-top:4px;}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+.kpi-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;font-weight:600;}
+.kpi-value{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;line-height:1.1;}
+.kpi-sub{font-size:11px;color:var(--text-muted);margin-top:3px;}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:10px;border-bottom:1px solid rgba(46,61,82,.4);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.badge-green{background:var(--green-dim);color:var(--green);}
+.badge-orange{background:var(--orange-dim);color:var(--orange);}
+.badge-red{background:var(--red-dim);color:var(--red);}
+.badge-blue{background:var(--blue-dim);color:var(--blue);}
+.badge-purple{background:var(--purple-dim);color:var(--purple);}
+.badge-yellow{background:var(--yellow-dim);color:var(--yellow);}
+.badge-teal{background:var(--teal-dim);color:var(--teal);}
+
+/* ── PROGRESS ── */
+.progress-wrap{background:var(--bg);border-radius:4px;height:5px;overflow:hidden;margin-top:6px;}
+.progress-bar{height:100%;border-radius:4px;transition:width .3s;}
+
+/* ── DIVIDER ── */
+.section-divider{display:flex;align-items:center;gap:10px;margin:18px 0 14px;color:var(--text-muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── LIST ITEMS ── */
+.list-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(46,61,82,.4);}
+.list-item:last-child{border-bottom:none;}
+.list-item-main{flex:1;min-width:0;}
+.list-item-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.list-item-sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
+
+/* ── CONFIG CHIPS ── */
+.tag{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-dim);margin:3px;cursor:pointer;}
+.tag:active{border-color:var(--red);color:var(--red);}
+
+/* ── SETUP ── */
+.setup-banner{background:linear-gradient(135deg,var(--yellow-dim),var(--orange-dim));border:1px solid var(--yellow);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+.setup-banner h3{color:var(--yellow);font-size:14px;margin-bottom:8px;}
+.setup-steps{list-style:none;counter-reset:s;}
+.setup-steps li{counter-increment:s;display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;font-size:13px;line-height:1.5;color:var(--text-dim);}
+.setup-steps li::before{content:counter(s);background:var(--yellow);color:#1a1000;border-radius:50%;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--orange);}
+pre{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);overflow-x:auto;line-height:1.6;margin:8px 0;max-height:180px;}
+
+/* ── EXPORT BTN ── */
+.btn-xls{padding:3px 9px;border-radius:5px;border:1px solid var(--green);background:var(--green-dim);color:var(--green);font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin-left:auto;white-space:nowrap;transition:all .15s;}
+.btn-xls:hover{background:var(--green);color:#0a1f15;}
+.btn-pdf{padding:3px 9px;border-radius:5px;border:1px solid var(--red);background:var(--red-dim);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;margin-left:4px;white-space:nowrap;transition:all .15s;}
+.btn-pdf:hover{background:var(--red);color:#fff;}
+
+/* ── FILTER CHIPS ── */
+.filter-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.chip{padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Inter',sans-serif;}
+.chip:active{transform:scale(.95);}
+.chip-active{background:var(--orange-dim);border-color:var(--orange);color:var(--orange);}
+
+/* ── NOTIF ── */
+#notif{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:12px 20px;font-size:14px;z-index:999;display:none;align-items:center;gap:10px;box-shadow:0 4px 30px rgba(0,0,0,.5);max-width:90vw;white-space:nowrap;}
+#notif.show{display:flex;}
+#notif.success{border-color:var(--green);}
+#notif.error{border-color:var(--red);}
+#notif.info{border-color:var(--blue);}
+
+/* ── UTILS ── */
+.flex{display:flex;gap:10px;align-items:center;}
+.flex-wrap{flex-wrap:wrap;}
+.mt8{margin-top:8px;}.mt12{margin-top:12px;}.mt14{margin-top:14px;}.mt20{margin-top:20px;}
+.mb8{margin-bottom:8px;}.mb12{margin-bottom:12px;}
+.empty-state{text-align:center;padding:32px 16px;color:var(--text-muted);font-size:13px;}
+.text-muted{color:var(--text-muted);}
+.text-dim{color:var(--text-dim);}
+
+/* ── DESKTOP ── */
+@media(min-width:700px){
+  main{padding:24px;max-width:1400px;margin:0 auto;padding-bottom:40px;}
+  .kpi-grid{grid-template-columns:repeat(5,1fr);}
+  .form-row{grid-template-columns:repeat(3,1fr);}
+  .btn{width:auto;}
+  .btn-row{justify-content:flex-end;}
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">FESTI<span>log</span> <small style="font-size:9px;opacity:.5;font-weight:400">v74</small></div>
+  <div class="header-right">
+    <div id="sync-pill" class="sync-pill disconnected" onclick="switchTab('sync')" title="Synchronisation">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Hors ligne</span>
+    </div>
+    <button class="btn btn-purple btn-sm" onclick="exportExcel()">📊</button>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav id="mainnav">
+  <div class="tab active"     onclick="switchTab('dashboard')"><span class="tab-icon">📊</span>Récap</div>
+  <div class="tab"            onclick="switchTab('dash-stand')"><span class="tab-icon">🏪</span>Par stand</div>
+  <div class="tab"            onclick="switchTab('stocks')"><span class="tab-icon">🏬</span>Stocks</div>
+  <div class="tab"            onclick="switchTab('rec-derval')"><span class="tab-icon">🟠</span>Réc. DERVAL</div>
+  <div class="tab"            onclick="switchTab('reception')"><span class="tab-icon">🔵</span>Réc. BASE LOG</div>
+  <div class="tab"            onclick="switchTab('rec-stand')"><span class="tab-icon">🏪</span>Récep. stand</div>
+  <div class="tab"            onclick="switchTab('distribution')"><span class="tab-icon">🍺</span>Distrib. BASE LOG</div>
+  <div class="tab"            onclick="switchTab('dist-derval')"><span class="tab-icon">🏭</span>Distrib. DERVAL</div>
+  <div class="tab"            onclick="switchTab('transfert')"><span class="tab-icon">↔️</span>Transfert</div>
+  <div class="tab"            onclick="switchTab('retours')"><span class="tab-icon">↩</span>Ret. Central</div>
+  <div class="tab"            onclick="switchTab('retours-fourn')"><span class="tab-icon">🚚</span>Ret. Fourn.</div>
+  <div class="tab"            onclick="switchTab('historique')"><span class="tab-icon">📋</span>Historique</div>
+  <div class="tab"            onclick="switchTab('config')"><span class="tab-icon">⚙️</span>Config</div>
+  <div class="tab"            onclick="switchTab('sync')"><span class="tab-icon">🔗</span>Sync<span id="pending-badge"></span></div>
+</nav>
+
+<main>
+
+<!-- ══════════ DASHBOARD ══════════ -->
+<div id="tab-dashboard" class="tab-content active">
+  <div id="kpi-grid" class="kpi-grid"></div>
+  <div id="dash-grid-wrap">
+    <div class="card card-accent">
+      <div class="card-title"><span class="card-title-icon">📦</span>Stock central <button class="btn-xls" onclick="exportSheet('stock-central')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock Central','stock-central-table')">↓ PDF</button></div>
+      <div id="chips-dashboard" class="filter-chips mb12"></div>
+      <div class="table-wrap" id="stock-central-table"></div>
+    </div>
+    <div class="card card-accent-green">
+      <div class="card-title"><span class="card-title-icon">📈</span>Conso nette par stand <button class="btn-xls" onclick="exportSheet('conso-stand')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Conso par Stand','conso-stand-table')">↓ PDF</button></div>
+      <div id="conso-stand-table"></div>
+    </div>
+    <div class="card mt14">
+      <div class="card-title"><span class="card-title-icon">🔢</span>Matrice stand × référence <button class="btn-xls" onclick="exportSheet('matrix')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Matrice Stand × Référence','matrix-table')">↓ PDF</button></div>
+      <div class="table-wrap" id="matrix-table"></div>
+    </div>
+    <div class="card mt14">
+      <div class="card-title"><span class="card-title-icon">🚚</span>Bilan fournisseur <button class="btn-xls" onclick="exportSheet('bilan-fourn')">↓ Excel</button> <button class="btn-pdf" onclick="exportBilanPDF()">↓ PDF</button></div>
+      <div id="chips-bilan" class="filter-chips mb12"></div>
+      <div class="table-wrap" id="bilan-fourn-table"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DASHBOARD PAR STAND ══════════ -->
+<div id="tab-dash-stand" class="tab-content">
+  <div class="card mb12">
+    <div class="card-title"><span class="card-title-icon">🏪</span>Filtrer par stand</div>
+    <div class="flex flex-wrap" style="gap:8px" id="stand-filter-chips"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📈</span>Consommation réelle — <span id="stand-dash-title" style="color:var(--orange)">Tous les stands</span> <button class="btn-xls" onclick="exportSheet('stand-dash')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Conso Réelle — '+document.getElementById('stand-dash-title').textContent,'stand-dash-table')">↓ PDF</button></div>
+    <div class="table-wrap" id="stand-dash-table"></div>
+  </div>
+</div>
+
+<!-- ══════════ STOCKS CENTRAUX ══════════ -->
+<div id="tab-stocks" class="tab-content">
+  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(320px,1fr));gap:14px;min-width:960px;">
+      <div class="card" style="border-left:3px solid var(--orange)">
+        <div class="card-title" style="color:var(--orange);font-size:13px">🏭 CENTRAL DERVAL <button class="btn-xls" onclick="exportSheet('stock-derval')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock DERVAL','stock-derval-table')">↓ PDF</button></div>
+        <div id="stock-derval-table"></div>
+      </div>
+      <div class="card" style="border-left:3px solid var(--blue)">
+        <div class="card-title" style="color:var(--blue);font-size:13px">🏭 CENTRAL BASE LOG <button class="btn-xls" onclick="exportSheet('stock-baselog')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock BASE LOG','stock-baselog-table')">↓ PDF</button></div>
+        <div id="stock-baselog-table"></div>
+      </div>
+      <div class="card" style="border-left:3px solid var(--green)">
+        <div class="card-title" style="color:var(--green);font-size:13px">Σ TOTAL COMBINÉS <button class="btn-xls" onclick="exportSheet('stock-total')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock Total Combiné','stock-total-table')">↓ PDF</button></div>
+        <div id="stock-total-table"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ RÉCEPTION DERVAL ══════════ -->
+<div id="tab-rec-derval" class="tab-content">
+  <div class="card" style="border-left:3px solid var(--orange)">
+    <div class="card-title" style="color:var(--orange)"><span class="card-title-icon">🏭</span>Réception — Central DERVAL</div>
+    <div class="form-stack">
+      <div class="form-row">
+        <div class="form-group"><label>Référence</label><div id="chips-rec" class="filter-chips"></div><select id="rec-produit" onchange="syncFmt('rec')"></select></div>
+        <div class="form-group"><label>Format</label><select id="rec-format"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantité</label><input type="number" id="rec-qty" min="0" placeholder="0" inputmode="numeric"></div>
+        <div class="form-group"><label>Unité</label><select id="rec-unite"></select></div>
+      </div>
+      <div class="form-group"><label>Fournisseur</label><select id="rec-fournisseur"></select></div>
+      <div class="form-group"><label>Note (optionnel)</label><input type="text" id="rec-note" placeholder="ex: Livraison matin"></div>
+      <div class="btn-row"><button class="btn" onclick="doReception('DERVAL')" style="background:var(--orange);color:#fff;font-weight:700;font-size:15px;padding:14px">+ Réceptionner DERVAL</button></div>
+    </div>
+  </div>
+  <div class="card mt14">
+    <div class="card-title"><span class="card-title-icon">📋</span>Historique réceptions DERVAL</div>
+    <div class="table-wrap" id="liste-receptions-derval"></div>
+  </div>
+</div>
+
+<!-- ══════════ RÉCEPTION BASE LOG ══════════ -->
+<div id="tab-reception" class="tab-content">
+  <div class="card" style="border-left:3px solid var(--blue)">
+    <div class="card-title" style="color:var(--blue)"><span class="card-title-icon">🏭</span>Réception — Central BASE LOG</div>
+    <div class="form-stack">
+      <div class="form-row">
+        <div class="form-group"><label>Référence</label><div id="chips-rec2" class="filter-chips"></div><select id="rec2-produit" onchange="syncFmt('rec2')"></select></div>
+        <div class="form-group"><label>Format</label><select id="rec2-format"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantité</label><input type="number" id="rec2-qty" min="0" placeholder="0" inputmode="numeric"></div>
+        <div class="form-group"><label>Unité</label><select id="rec2-unite"></select></div>
+      </div>
+      <div class="form-group"><label>Fournisseur</label><select id="rec2-fournisseur"></select></div>
+      <div class="form-group"><label>Note (optionnel)</label><input type="text" id="rec2-note" placeholder="ex: Livraison après-midi"></div>
+      <div class="btn-row"><button class="btn" onclick="doReception('BASELOG')" style="background:var(--blue);color:#fff;font-weight:700;font-size:15px;padding:14px">+ Réceptionner BASE LOG</button></div>
+    </div>
+  </div>
+  <div class="card mt14">
+    <div class="card-title"><span class="card-title-icon">📋</span>Historique réceptions BASE LOG</div>
+    <div class="table-wrap" id="liste-receptions-baselog"></div>
+  </div>
+</div>
+
+
+<!-- ══════════ RÉCEPTION DIRECTE STAND ══════════ -->
+<div id="tab-rec-stand" class="tab-content">
+  <div class="card card-accent-teal">
+    <div class="card-title"><span class="card-title-icon">🏪</span>Réception directe — Stand</div>
+    <p class="text-dim mb12" style="font-size:12px">Le stock arrive directement sur un stand, sans passer par le stock central.</p>
+    <div class="form-stack">
+      <div class="form-group"><label>Stand destinataire</label><select id="recs-stand"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Référence</label><div id="chips-recs" class="filter-chips"></div><select id="recs-produit" onchange="syncFmt('recs')"></select></div>
+        <div class="form-group"><label>Format</label><select id="recs-format"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantité</label><input type="number" id="recs-qty" min="0" placeholder="0" inputmode="numeric"></div>
+        <div class="form-group"><label>Unité</label><select id="recs-unite"></select></div>
+      </div>
+      <div class="form-group"><label>Fournisseur</label><select id="recs-fournisseur"></select></div>
+      <div class="form-group"><label>Note (optionnel)</label><input type="text" id="recs-note" placeholder="ex: Livraison directe fournisseur"></div>
+      <div class="btn-row"><button class="btn btn-teal" onclick="doReceptionStand()">+ Réceptionner sur le stand</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📋</span>Historique réceptions stands</div>
+    <div class="table-wrap" id="liste-rec-stand"></div>
+  </div>
+</div>
+
+<!-- ══════════ DISTRIBUTION ══════════ -->
+<div id="tab-distribution" class="tab-content">
+  <div class="card card-accent-blue">
+    <div class="card-title"><span class="card-title-icon">🍺</span>Distribution — Central BASE LOG → Stand</div>
+    <div class="form-stack">
+      <div class="form-group"><label>Stand destinataire</label><select id="dist-stand"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Référence</label><div id="chips-dist" class="filter-chips"></div><select id="dist-produit" onchange="syncFmt('dist')"></select></div>
+        <div class="form-group"><label>Format</label><select id="dist-format"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantité</label><input type="number" id="dist-qty" min="0" placeholder="0" inputmode="numeric"></div>
+        <div class="form-group"><label>Unité</label><select id="dist-unite"></select></div>
+      </div>
+      <div class="form-group"><label>Note (optionnel)</label><input type="text" id="dist-note" placeholder="ex: Réappro 14h"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="doDistribution('BASELOG')">→ Distribuer depuis BASE LOG</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📋</span>Récapitulatif par stand</div>
+    <div class="table-wrap" id="stock-stands-table"></div>
+  </div>
+</div>
+
+<!-- ══════════ DISTRIBUTION DERVAL ══════════ -->
+<div id="tab-dist-derval" class="tab-content">
+  <div class="card" style="border-left:3px solid var(--orange)">
+    <div class="card-title" style="color:var(--orange)"><span class="card-title-icon">🏭</span>Distribution — Central DERVAL → Stand</div>
+    <div class="form-stack">
+      <div class="form-group"><label>Stand destinataire</label><select id="distd-stand"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Référence</label><div id="chips-distd" class="filter-chips"></div><select id="distd-produit" onchange="syncFmt('distd')"></select></div>
+        <div class="form-group"><label>Format</label><select id="distd-format"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantité</label><input type="number" id="distd-qty" min="0" placeholder="0" inputmode="numeric"></div>
+        <div class="form-group"><label>Unité</label><select id="distd-unite"></select></div>
+      </div>
+      <div class="form-group"><label>Note (optionnel)</label><input type="text" id="distd-note" placeholder="ex: Réappro 14h"></div>
+      <div class="btn-row"><button class="btn btn-primary" style="background:var(--orange)" onclick="doDistribution('DERVAL')">→ Distribuer depuis DERVAL</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📋</span>Récapitulatif par stand</div>
+    <div class="table-wrap" id="stock-stands-table-derval"></div>
+  </div>
+</div>
+
+<!-- ══════════ TRANSFERT INTER-STAND ══════════ -->
+<div id="tab-transfert" class="tab-content">
+  <div class="card" style="border-left:3px solid var(--teal)">
+    <div class="card-title"><span class="card-title-icon">↔️</span>Transfert Stand → Stand</div>
+    <p class="text-dim mb12" style="font-size:12px">Déplace du stock directement d'un stand vers un autre, sans repasser par le central.</p>
+    <div class="form-stack">
+      <div class="form-row">
+        <div class="form-group"><label>Stand source</label><select id="trf-from"></select></div>
+        <div class="form-group"><label>Stand destination</label><select id="trf-to"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Référence</label><div id="chips-trf" class="filter-chips"></div><select id="trf-produit" onchange="syncFmt('trf')"></select></div>
+        <div class="form-group"><label>Format</label><select id="trf-format"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantité</label><input type="number" id="trf-qty" min="0" placeholder="0" inputmode="numeric"></div>
+        <div class="form-group"><label>Unité</label><select id="trf-unite"></select></div>
+      </div>
+      <div class="form-group"><label>Note (optionnel)</label><input type="text" id="trf-note" placeholder="ex: Dépannage Bar VIP"></div>
+      <div class="btn-row"><button class="btn btn-teal" onclick="doTransfert()">↔ Transférer</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📋</span>Historique des transferts</div>
+    <div class="table-wrap" id="liste-transferts"></div>
+  </div>
+</div>
+
+<!-- ══════════ RETOUR CENTRAL ══════════ -->
+<div id="tab-retours" class="tab-content">
+  <div class="card card-accent">
+    <div class="card-title"><span class="card-title-icon">↩</span>Retour Stand → Stock central</div>
+    <div class="form-stack">
+      <div class="form-group"><label>Stand source</label><select id="ret-stand"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Référence</label><div id="chips-ret" class="filter-chips"></div><select id="ret-produit" onchange="syncFmt('ret')"></select></div>
+        <div class="form-group"><label>Format</label><select id="ret-format"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantité retournée</label><input type="number" id="ret-qty" min="0" placeholder="0" inputmode="numeric"></div>
+        <div class="form-group"><label>Unité</label><select id="ret-unite"></select></div>
+      </div>
+      <div class="form-group"><label>Note (optionnel)</label><input type="text" id="ret-note" placeholder="ex: Fin de service"></div>
+      <div class="btn-row"><button class="btn btn-ghost" onclick="doRetour('stand')">↩ Retour au central</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📋</span>Historique retours → central</div>
+    <div class="table-wrap" id="liste-retours-central"></div>
+  </div>
+</div>
+
+<!-- ══════════ RETOUR FOURNISSEUR ══════════ -->
+<div id="tab-retours-fourn" class="tab-content">
+  <div class="card card-accent-red">
+    <div class="card-title"><span class="card-title-icon">🚚</span>Retour Stock central → Fournisseur</div>
+    <div class="form-stack">
+      <div class="form-row">
+        <div class="form-group"><label>Référence</label><div id="chips-retf" class="filter-chips"></div><select id="retf-produit" onchange="syncFmt('retf')"></select></div>
+        <div class="form-group"><label>Format</label><select id="retf-format"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantité</label><input type="number" id="retf-qty" min="0" placeholder="0" inputmode="numeric"></div>
+        <div class="form-group"><label>Unité</label><select id="retf-unite"></select></div>
+      </div>
+      <div class="form-group"><label>Note (optionnel)</label><input type="text" id="retf-note" placeholder="ex: Fin J1"></div>
+      <div class="btn-row"><button class="btn btn-red" onclick="doRetour('fournisseur')">🚚 Retour fournisseur</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📋</span>Historique retours → fournisseur</div>
+    <div class="table-wrap" id="liste-retours-fourn"></div>
+  </div>
+</div>
+
+<!-- ══════════ HISTORIQUE ══════════ -->
+<div id="tab-historique" class="tab-content">
+  <div class="card">
+    <div class="form-stack mb12">
+      <input type="text" id="search-hist" placeholder="🔍 Filtrer…" oninput="renderHist()">
+      <div class="form-row">
+        <select id="filter-type" onchange="renderHist()">
+          <option value="">Tous les types</option>
+          <option value="reception">Réception centrale</option>
+          <option value="reception_stand">Réception stand</option>
+          <option value="distribution">Distribution</option>
+          <option value="transfert">Transfert</option>
+          <option value="retour_stand">Retour stand</option>
+          <option value="retour_fournisseur">Retour fournisseur</option>
+        </select>
+        <select id="filter-stand-h" onchange="renderHist()"><option value="">Tous les stands</option></select>
+      </div>
+      <select id="filter-ref-h" onchange="renderHist()"><option value="">Toutes les références</option></select>
+      <button class="btn btn-ghost btn-sm" onclick="askPassword(()=>{state.mouvements=[];pushedIds=new Set();savePushedIds();save();renderAll();notif('Historique vidé');})">🗑 Vider local</button>
+      <button class="btn-xls" onclick="exportSheet('historique')" style="margin-left:auto">↓ Excel</button>
+      <button class="btn-pdf" onclick="printTablePDF('Historique Mouvements','historique-table')">↓ PDF</button>
+    </div>
+    <div class="table-wrap" id="historique-table"></div>
+  </div>
+</div>
+
+<!-- ══════════ CONFIG ══════════ -->
+<div id="tab-config" class="tab-content">
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">🍺</span>Références de boissons</div>
+    <div id="produits-config"></div>
+    <div class="section-divider">Ajouter une référence</div>
+    <div class="form-stack">
+      <div class="form-group"><label>Nom (sans format)</label><input type="text" id="np-nom" placeholder="ex: Heineken, Perrier…"></div>
+      <div class="form-group"><label>Formats (cocher)</label><div id="np-fmts" class="flex flex-wrap" style="gap:6px;padding-top:4px"></div></div>
+      <div class="form-group"><label>Unité(s) de stock (cocher)</label><div id="np-unites" class="flex flex-wrap" style="gap:6px;padding-top:4px"></div></div>
+      <div class="form-group"><label>Fournisseur(s) (cocher)</label><div id="np-fournisseurs" class="flex flex-wrap" style="gap:6px;padding-top:4px"></div></div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="ajouterProduit()">+ Ajouter référence</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📏</span>Formats</div>
+    <div id="formats-config" class="flex flex-wrap mb12" style="gap:6px"></div>
+    <div class="form-row">
+      <input type="text" id="nf-val" placeholder="ex: 50cl, 2L…">
+      <button class="btn btn-primary btn-sm" onclick="ajouterFormat()">+ Ajouter</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📦</span>Unités</div>
+    <div id="unites-config" class="flex flex-wrap mb12" style="gap:6px"></div>
+    <div class="form-row">
+      <input type="text" id="nu-val" placeholder="ex: palette, caisse…">
+      <button class="btn btn-primary btn-sm" onclick="ajouterUnite()">+ Ajouter</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">🏪</span>Stands</div>
+    <div id="stands-config" class="mb12"></div>
+    <div class="form-row">
+      <input type="text" id="ns-nom" placeholder="Nom du stand">
+      <button class="btn btn-primary btn-sm" onclick="ajouterStand()">+ Ajouter</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">🏷️</span>Filtres / Catégories</div>
+    <div id="categories-config" class="mb12"></div>
+    <div class="form-row">
+      <input type="text" id="nc-label" placeholder="ex: 🍸 Cocktail sans alcool">
+      <button class="btn btn-primary btn-sm" onclick="ajouterCategorie()">+ Ajouter</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">🚚</span>Fournisseurs</div>
+    <div id="fournisseurs-config" class="flex flex-wrap mb12" style="gap:6px"></div>
+    <div class="form-row">
+      <input type="text" id="nf2-nom" placeholder="Nom du fournisseur">
+      <button class="btn btn-primary btn-sm" onclick="ajouterFournisseur()">+ Ajouter</button>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--red-dim)">
+    <div class="card-title" style="color:var(--red)">⚠ Zone danger</div>
+    <div class="btn-row flex-wrap">
+      <button class="btn btn-ghost btn-sm" onclick="resetCfg()">↺ Réinitialiser config</button>
+      <button class="btn btn-red btn-sm" onclick="resetAll()">🗑 Tout effacer</button>
+    </div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div class="section-title" style="margin-bottom:8px">Repartir à zéro (garder la config)</div>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Supprime tous les mouvements, stocks et historiques. Conserve les références, formats, stands et fournisseurs.</p>
+      <button class="btn btn-red btn-sm" onclick="askPassword(()=>{state.mouvements=[];pushedIds=new Set();savePushedIds();save();renderAll();notif('✓ Mouvements effacés — config conservée');})">🗑 Vider mouvements (garder config)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SYNC ══════════ -->
+<div id="tab-sync" class="tab-content">
+  <div class="setup-banner">
+    <h3>📋 Setup Google Sheets — une seule fois</h3>
+    <ol class="setup-steps">
+      <li>Va sur <strong>script.google.com</strong> → "Nouveau projet"</li>
+      <li>Efface tout, colle le code ci-dessous, <strong>enregistre</strong></li>
+      <li><strong>Déployer → Nouveau déploiement</strong> → type "Application Web" → accès "Tout le monde"</li>
+      <li>Autorise les permissions Google</li>
+      <li>Copie l'<strong>URL de déploiement</strong> dans le champ ci-dessous</li>
+      <li>Entre un nom d'appareil, puis <strong>Enregistrer</strong></li>
+    </ol>
+    <button class="btn btn-ghost btn-sm" onclick="copyScript()" style="margin-top:8px">📋 Copier le code Apps Script</button>
+    <pre id="script-code" style="display:none">// ═══════════════════════════════════════════════
+// FESTIlog — Google Apps Script (multi-feuilles)
+// ═══════════════════════════════════════════════
+
+function getOrCreate(ss, name) {
+  return ss.getSheetByName(name) || ss.insertSheet(name);
+}
+
+function styleHeader(sheet, nbCols) {
+  sheet.getRange(1,1,1,nbCols).setFontWeight('bold').setBackground('#0F1923').setFontColor('#FF6B2B');
+}
+
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // ── SUPPRESSION MOUVEMENT ────────────────────────────────
+    if (data.action === 'deleteMouvement') {
+      var sm = ss.getSheetByName('Mouvements');
+      if (sm && sm.getLastRow() > 1) {
+        var rows = sm.getRange(2, 1, sm.getLastRow()-1, sm.getLastColumn()).getValues();
+        for (var i = rows.length-1; i >= 0; i--) {
+          // Cherche par date+heure (colonnes 1 et 2)
+          if (String(rows[i][0]) === String(data.date||'') && String(rows[i][1]) === String(data.heure||'')) {
+            sm.deleteRow(i+2);
+            break;
+          }
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── RESET COMPLET DU SHEET ───────────────────────────────
+    if (data.action === 'resetSheet') {
+      var feuilles = ['Mouvements','Stocks Centraux','Conso Réelle Globale','Config'];
+      // Supprimer aussi toutes les feuilles CONSO - ...
+      ss.getSheets().forEach(function(sh){
+        var n = sh.getName();
+        if(n.indexOf('CONSO - ') === 0) feuilles.push(n);
+      });
+      feuilles.forEach(function(nom){
+        var sh = ss.getSheetByName(nom);
+        if(sh) sh.clearContents();
+      });
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── AJOUT MOUVEMENT ──────────────────────────────────────
+    if (data.action === 'addMouvement') {
+      var sm = getOrCreate(ss, 'Mouvements');
+      var header = ['Date','Heure','Type','Référence','Unité','Format','Source','Destination','Fournisseur','Centrale','Quantité','Note','Appareil'];
+      // Toujours vérifier/mettre à jour l'en-tête (même si la feuille existe)
+      if (sm.getLastRow() === 0) {
+        sm.appendRow(header);
+        styleHeader(sm, header.length);
+        sm.getRange('A:B').setNumberFormat('@STRING@');
+      } else {
+        // Mettre à jour l'en-tête si le nombre de colonnes a changé
+        var currentHeader = sm.getRange(1, 1, 1, sm.getLastColumn()).getValues()[0];
+        if (currentHeader.length < header.length) {
+          sm.getRange(1, 1, 1, header.length).setValues([header]).setNumberFormat('@STRING@');
+          styleHeader(sm, header.length);
+        }
+      }
+      var m = data.mouvement;
+      var row = [m.date||'',m.heure||'',m.type,m.ref,m.unite||'',m.fmt||'',m.standSrc||'',m.standDst||'',m.fournisseur||'',m.centrale||'',m.qty,m.note||'',m.appareil||''];
+      var lastRow = sm.getLastRow() + 1;
+      sm.getRange(lastRow, 1, 1, row.length).setNumberFormat('@STRING@').setValues([row]);
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── RÉCUPÉRER MOUVEMENTS ─────────────────────────────────
+    if (data.action === 'getMouvements') {
+      var sheet = ss.getSheetByName('Mouvements');
+      if (!sheet || sheet.getLastRow() <= 1)
+        return ContentService.createTextOutput(JSON.stringify({ok:true,rows:[]})).setMimeType(ContentService.MimeType.JSON);
+      var rows = sheet.getRange(2,1,sheet.getLastRow()-1,11).getValues();
+      return ContentService.createTextOutput(JSON.stringify({ok:true,rows:rows})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── SNAPSHOTS (stocks + conso) ───────────────────────────
+    if (data.action === 'updateSnapshots') {
+      var snap = data.snapshot;
+
+      // Stocks Centraux
+      if (snap && snap.stocks) {
+        var sc = getOrCreate(ss, 'Stocks Centraux');
+        sc.clearContents();
+        sc.appendRow(['Référence','Format','Unité','Stock DERVAL','Stock BASE LOG','Stock Total','Màj']);
+        styleHeader(sc, 7);
+        snap.stocks.forEach(function(r){ sc.appendRow(r); });
+      }
+
+      // Conso Réelle Globale
+      if (snap && snap.consoGlobale) {
+        var cg = getOrCreate(ss, 'Conso Réelle Globale');
+        cg.clearContents();
+        cg.appendRow(snap.consoGlobaleHeader);
+        styleHeader(cg, snap.consoGlobaleHeader.length);
+        snap.consoGlobale.forEach(function(r){ cg.appendRow(r); });
+      }
+
+      // Une feuille par stand
+      if (snap && snap.stands) {
+        snap.stands.forEach(function(standData) {
+          var nomFeuille = 'CONSO - ' + standData.nom;
+          if (nomFeuille.length > 100) nomFeuille = nomFeuille.slice(0, 100);
+          var sh = getOrCreate(ss, nomFeuille);
+          sh.clearContents();
+          sh.appendRow(['Référence','Format','Unité','Reçu','Ret. Central','Trf. Sortant','Conso. Réelle','Màj']);
+          styleHeader(sh, 8);
+          standData.rows.forEach(function(r){ sh.appendRow(r); });
+        });
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── CONFIG ───────────────────────────────────────────────
+    if (data.action === 'syncConfig') {
+      var sc2 = getOrCreate(ss, 'Config');
+      sc2.clearContents();
+      sc2.appendRow(['produits_json', JSON.stringify(data.produits)]);
+      sc2.appendRow(['stands_json', JSON.stringify(data.stands)]);
+      sc2.appendRow(['formats_json', JSON.stringify(data.formats)]);
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === 'getConfig') {
+      var sc3 = ss.getSheetByName('Config');
+      if (!sc3 || sc3.getLastRow() === 0)
+        return ContentService.createTextOutput(JSON.stringify({ok:true,config:null})).setMimeType(ContentService.MimeType.JSON);
+      var cfgRows = sc3.getDataRange().getValues();
+      var cfg = {};
+      cfgRows.forEach(function(r){ try{ cfg[r[0]]=JSON.parse(r[1]); }catch(ex){} });
+      return ContentService.createTextOutput(JSON.stringify({ok:true,config:cfg})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+function doGet(e){ return doPost(e); }</pre>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">🔗</span>Connexion</div>
+    <div class="form-stack">
+      <div class="form-group"><label>URL Apps Script</label><input type="text" id="sheet-url" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <div class="form-group"><label>Nom de cet appareil</label><input type="text" id="device-name" placeholder="ex: Régie, Bar VIP…"></div>
+      <div class="btn-row flex-wrap">
+        <button class="btn btn-yellow btn-sm" onclick="testerConnexion()">⚡ Tester</button>
+        <button class="btn btn-green btn-sm" onclick="sauvegarderConnexion()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="sync-actions" style="display:none">
+    <div class="card-title"><span class="card-title-icon">⚡</span>Actions</div>
+    <div class="form-stack">
+      <button class="btn btn-primary" onclick="pullMouvements()">⬇ Récupérer les mouvements du Sheet</button>
+      <div class="btn-row flex-wrap">
+        <button class="btn btn-ghost btn-sm" onclick="pushConfig()">⬆ Envoyer ma config</button>
+        <button class="btn btn-ghost btn-sm" onclick="pullConfig()">⬇ Récupérer config</button>
+        <button class="btn btn-ghost btn-sm" onclick="flushQueue()">↑ Vider la file</button>
+        <button class="btn btn-red btn-sm" onclick="resetSheet()">🗑 Réinitialiser le Sheet</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;padding:4px 0">
+        <input type="checkbox" id="auto-sync-chk" onchange="toggleAutoSync()" style="width:auto;cursor:pointer;width:18px;height:18px">
+        Envoi automatique à chaque saisie
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;padding:4px 0">
+        <input type="checkbox" id="auto-pull-chk" onchange="toggleAutoPull()" style="width:auto;cursor:pointer;width:18px;height:18px">
+        Rafraîchir depuis le Sheet toutes les 30s
+      </label>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:4px">ℹ️ Les mouvements déjà connus localement ne sont jamais dupliqués au pull.</p>
+      <div id="queue-status" class="mt8"></div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--red-dim)">
+    <div class="card-title" style="color:var(--red)">⚠ Zone danger Sheet</div>
+    <div class="btn-row flex-wrap">
+      <button class="btn btn-red btn-sm" onclick="resetSheet()">🗑 Réinitialiser tout le Google Sheet</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Mot de passe requis. Vide toutes les feuilles du Sheet (mouvements, stocks, conso, config).</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="card-title-icon">📝</span>Journal sync</div>
+    <div id="sync-log" style="max-height:180px;overflow-y:auto;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-dim);line-height:1.8"></div>
+  </div>
+</div>
+
+</main>
+
+<!-- EDIT PRODUIT MODAL -->
+<div id="edit-prod-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:600;align-items:center;justify-content:center;overflow-y:auto;">
+  <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:24px;width:92%;max-width:520px;margin:20px auto;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px;color:var(--orange)">✏ Modifier la référence</div>
+    <div class="form-stack">
+      <div class="form-group">
+        <label>Nom</label>
+        <input type="text" id="ep-nom" placeholder="Nom de la référence">
+      </div>
+      <div class="form-group">
+        <label>Formats (cocher)</label>
+        <div id="ep-fmts" class="flex flex-wrap" style="gap:6px;padding-top:4px"></div>
+      </div>
+      <div class="form-group">
+        <label>Unité(s) (cocher)</label>
+        <div id="ep-unites" class="flex flex-wrap" style="gap:6px;padding-top:4px"></div>
+      </div>
+      <div class="form-group">
+        <label>Fournisseur(s) (cocher)</label>
+        <div id="ep-fournisseurs" class="flex flex-wrap" style="gap:6px;padding-top:4px"></div>
+      </div>
+    </div>
+    <input type="hidden" id="ep-id">
+    <div class="flex flex-wrap mt24" style="gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeEditProd()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEditProd()">✓ Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOT DE PASSE MODAL -->
+<div id="pwd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:24px;width:90%;max-width:320px;box-shadow:0 8px 40px rgba(0,0,0,.5);">
+    <div style="font-size:15px;font-weight:700;margin-bottom:6px;">🔒 Accès protégé</div>
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">Entrez le mot de passe pour continuer.</div>
+    <input type="hidden" id="pwd-expected" value="olivier">
+    <input type="password" id="pwd-input" placeholder="Mot de passe" style="width:100%;margin-bottom:10px;">
+    <div id="pwd-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:10px;">❌ Mot de passe incorrect</div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-red" id="pwd-ok" style="flex:1">Confirmer</button>
+      <button class="btn btn-ghost" id="pwd-cancel" style="flex:1">Annuler</button>
+    </div>
+  </div>
+</div>
+<div id="notif"></div>
+
+<script>
+// ══════════════════════════ STATE ══════════════════════════
+const DEF={
+  "formats": [
+    "25cl",
+    "33cl",
+    "50cl",
+    "75cl",
+    "1L",
+    "1,25L",
+    "1,5L",
+    "3L",
+    "10L",
+    "20L",
+    "30L",
+    "500L",
+    "1000L",
+    "1kg"
+  ],
+  "fournisseurs": [
+    "Neodif",
+    "Brasserie du Bouffay",
+    "Kerisac",
+    "Ackerman",
+    "Féfé Cocktail",
+    "Obiervin",
+    "La cave de l'Erdre",
+    "Autres",
+    "Deshais fruits",
+    "Cristaline"
+  ],
+  "unites": [
+    "pack",
+    "bouteille",
+    "canette",
+    "bib",
+    "fût",
+    "cuve",
+    "sachet",
+    "unité",
+    "caisse"
+  ],
+  "produits": [
+    {
+      "id": "p01",
+      "nom": "Coca Cherry",
+      "formats": [
+        "50cl",
+        "1,25L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p02",
+      "nom": "Coca-Cola Originale",
+      "formats": [
+        "50cl",
+        "1,25L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p03",
+      "nom": "Coca-Cola Zéro",
+      "formats": [
+        "50cl",
+        "1,25L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p04",
+      "nom": "Fanta Orange",
+      "formats": [
+        "50cl",
+        "1,25L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p05",
+      "nom": "Sprite",
+      "formats": [
+        "50cl",
+        "1,25L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p06",
+      "nom": "Fuze Tea Pêche",
+      "formats": [
+        "50cl",
+        "1,25L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p61",
+      "nom": "Tropico Original",
+      "formats": [
+        "50cl",
+        "1,25L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p07",
+      "nom": "Eau pétillante Plancoët",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille",
+        "pack"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p08",
+      "nom": "Eau plate Cristaline",
+      "formats": [
+        "50cl",
+        "1,5L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin",
+        "Cristaline"
+      ]
+    },
+    {
+      "id": "p09",
+      "nom": "Eau San Pellegrino",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p10",
+      "nom": "Eau Evian",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p11",
+      "nom": "Limonade",
+      "fournisseurs": [
+        "Obiervin"
+      ],
+      "formats": [
+        "1,25L",
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ]
+    },
+    {
+      "id": "p12",
+      "nom": "Jus de pomme bidon",
+      "fournisseurs": [
+        "Deshais fruits"
+      ],
+      "formats": [
+        "3L"
+      ],
+      "unite": "bib",
+      "unites": [
+        "bib"
+      ]
+    },
+    {
+      "id": "p13",
+      "nom": "Jus de pomme bouteille",
+      "fournisseurs": [
+        "Obiervin"
+      ],
+      "formats": [
+        "1L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack"
+      ]
+    },
+    {
+      "id": "p14",
+      "nom": "Jus d'orange",
+      "fournisseurs": [
+        "Obiervin"
+      ],
+      "formats": [
+        "1L"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack"
+      ]
+    },
+    {
+      "id": "p15",
+      "nom": "Minute Maid",
+      "fournisseurs": [
+        "Obiervin"
+      ],
+      "formats": [
+        "33cl"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "canette"
+      ]
+    },
+    {
+      "id": "p16",
+      "nom": "Tonique La French Bio",
+      "fournisseurs": [
+        "Obiervin"
+      ],
+      "formats": [
+        "1,25L",
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ]
+    },
+    {
+      "id": "p17",
+      "nom": "Monster",
+      "fournisseurs": [
+        "Obiervin"
+      ],
+      "formats": [
+        "25cl"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "canette"
+      ]
+    },
+    {
+      "id": "p18",
+      "nom": "Café",
+      "fournisseurs": [
+        "Obiervin"
+      ],
+      "formats": [
+        "1kg"
+      ],
+      "unite": "sachet",
+      "unites": [
+        "sachet"
+      ]
+    },
+    {
+      "id": "p39",
+      "nom": "Pitburger (sans alcool)",
+      "fournisseurs": [
+        "Neodif",
+        "La cave de l'Erdre"
+      ],
+      "formats": [
+        "30L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p40",
+      "nom": "Unan",
+      "fournisseurs": [
+        "Neodif"
+      ],
+      "formats": [
+        "30L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p42",
+      "nom": "Moustache",
+      "fournisseurs": [
+        "Brasserie du Bouffay"
+      ],
+      "formats": [
+        "500L",
+        "30L",
+        "1000L"
+      ],
+      "unite": "cuve",
+      "unites": [
+        "cuve",
+        "fût"
+      ]
+    },
+    {
+      "id": "p43",
+      "nom": "Blanche",
+      "fournisseurs": [
+        "Brasserie du Bouffay"
+      ],
+      "formats": [
+        "1000L",
+        "30L"
+      ],
+      "unite": "cuve",
+      "unites": [
+        "cuve",
+        "fût"
+      ]
+    },
+    {
+      "id": "p44",
+      "nom": "Ambrée",
+      "fournisseurs": [
+        "Brasserie du Bouffay"
+      ],
+      "formats": [
+        "1000L",
+        "30L"
+      ],
+      "unite": "cuve",
+      "unites": [
+        "cuve",
+        "fût"
+      ]
+    },
+    {
+      "id": "p45",
+      "nom": "Titan",
+      "fournisseurs": [
+        "Brasserie du Bouffay"
+      ],
+      "formats": [
+        "1000L",
+        "30L"
+      ],
+      "unite": "cuve",
+      "unites": [
+        "cuve",
+        "fût"
+      ]
+    },
+    {
+      "id": "p46",
+      "nom": "Triple",
+      "fournisseurs": [
+        "Brasserie du Bouffay"
+      ],
+      "formats": [
+        "1000L",
+        "30L"
+      ],
+      "unite": "cuve",
+      "unites": [
+        "cuve",
+        "fût"
+      ]
+    },
+    {
+      "id": "p55",
+      "nom": "St Feuillien Rouge",
+      "fournisseurs": [
+        "Neodif"
+      ],
+      "formats": [
+        "30L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p47",
+      "nom": "Crémant de Loire Blanc Brut Bulle Royale",
+      "fournisseurs": [
+        "Ackerman"
+      ],
+      "formats": [
+        "75cl"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ]
+    },
+    {
+      "id": "p48",
+      "nom": "Crémant de Loire Rosé Brut Bulle Royale",
+      "fournisseurs": [
+        "Ackerman"
+      ],
+      "formats": [
+        "75cl"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ]
+    },
+    {
+      "id": "p49",
+      "nom": "Bulle Royale Zéro Alcool Blanc",
+      "fournisseurs": [
+        "Ackerman"
+      ],
+      "formats": [
+        "75cl"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ]
+    },
+    {
+      "id": "p50",
+      "nom": "Saumur Blanc Coulée de la Ceriseraie",
+      "fournisseurs": [
+        "Ackerman"
+      ],
+      "formats": [
+        "75cl"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ]
+    },
+    {
+      "id": "p51",
+      "nom": "Rosé de Loire Château la Varrière",
+      "fournisseurs": [
+        "Ackerman"
+      ],
+      "formats": [
+        "75cl"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ]
+    },
+    {
+      "id": "p52",
+      "nom": "Saumur Blanc Brut Royal Millésimé",
+      "fournisseurs": [
+        "Ackerman"
+      ],
+      "formats": [
+        "75cl"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ]
+    },
+    {
+      "id": "p53",
+      "nom": "MOJITO - Féfé Cocktail",
+      "fournisseurs": [
+        "Féfé Cocktail"
+      ],
+      "formats": [
+        "30L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p54",
+      "nom": "MOSCOW MULE - Féfé Cocktail",
+      "fournisseurs": [
+        "Féfé Cocktail"
+      ],
+      "formats": [
+        "30L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p59",
+      "nom": "Virgin Mojito - Féfé Cocktail",
+      "fournisseurs": [
+        "Féfé Cocktail"
+      ],
+      "formats": [
+        "20L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p60",
+      "nom": "Virgin Colada - Féfé Cocktail",
+      "fournisseurs": [
+        "Féfé Cocktail"
+      ],
+      "formats": [
+        "20L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p56",
+      "nom": "Petit Pont Rosé",
+      "fournisseurs": [
+        "La cave de l'Erdre"
+      ],
+      "formats": [
+        "10L"
+      ],
+      "unite": "bib",
+      "unites": [
+        "bib"
+      ]
+    },
+    {
+      "id": "p57",
+      "nom": "Gourmandise Rouge",
+      "fournisseurs": [
+        "La cave de l'Erdre"
+      ],
+      "formats": [
+        "10L"
+      ],
+      "unite": "bib",
+      "unites": [
+        "bib"
+      ]
+    },
+    {
+      "id": "p58",
+      "nom": "Chardonnay Colombard",
+      "fournisseurs": [
+        "La cave de l'Erdre"
+      ],
+      "formats": [
+        "10L"
+      ],
+      "unite": "bib",
+      "unites": [
+        "bib"
+      ]
+    },
+    {
+      "id": "p20",
+      "nom": "Sirop Fraise",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p21",
+      "nom": "Sirop Pêche",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p22",
+      "nom": "Sirop Grenadine",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p23",
+      "nom": "Sirop Menthe Verte",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p24",
+      "nom": "Sirop Fruit de la Passion",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p25",
+      "nom": "Sirop Goyave",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p26",
+      "nom": "Sirop Kiwi",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p27",
+      "nom": "Sirop Melon",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p28",
+      "nom": "Sirop Menthe Glaciale",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p29",
+      "nom": "Sirop Pastèque",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p30",
+      "nom": "Sirop Violette",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p31",
+      "nom": "Sirop Framboise",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p32",
+      "nom": "Sirop Citron Blanc",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p33",
+      "nom": "Sirop Pamplemousse",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p34",
+      "nom": "Sirop Mûre",
+      "formats": [
+        "1L"
+      ],
+      "unite": "bouteille",
+      "unites": [
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "p35",
+      "nom": "Cider Original Kerisac",
+      "fournisseurs": [
+        "Kerisac"
+      ],
+      "formats": [
+        "20L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p36",
+      "nom": "Cider Rouge Kerisac",
+      "fournisseurs": [
+        "Kerisac"
+      ],
+      "formats": [
+        "20L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p37",
+      "nom": "Cider IPA Kerisac",
+      "fournisseurs": [
+        "Kerisac"
+      ],
+      "formats": [
+        "20L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "p38",
+      "nom": "Cidre Demi-sec Kerisac",
+      "fournisseurs": [
+        "Kerisac"
+      ],
+      "formats": [
+        "30L"
+      ],
+      "unite": "fût",
+      "unites": [
+        "fût"
+      ]
+    },
+    {
+      "id": "mqs2ku2yknoj",
+      "nom": "Eau gazeuse Cristaline",
+      "formats": [
+        "50cl"
+      ],
+      "unite": "pack",
+      "unites": [
+        "pack",
+        "bouteille"
+      ],
+      "fournisseurs": [
+        "Cristaline",
+        "Obiervin"
+      ]
+    },
+    {
+      "id": "mqs4fzqmr6u0",
+      "nom": "Krombacher (sans alcool)",
+      "formats": [
+        "33cl"
+      ],
+      "unite": "caisse",
+      "unites": [
+        "caisse"
+      ],
+      "fournisseurs": [
+        "Obiervin"
+      ]
+    }
+  ],
+  "stands": [
+    {
+      "id": "s1",
+      "nom": "Stand VIP"
+    },
+    {
+      "id": "s2",
+      "nom": "Bar du Chêne"
+    },
+    {
+      "id": "s3",
+      "nom": "Bar du Château"
+    },
+    {
+      "id": "s4",
+      "nom": "Bar du Village"
+    },
+    {
+      "id": "s5",
+      "nom": "Bar à Bulles"
+    },
+    {
+      "id": "s6",
+      "nom": "Petit Bar de l'Erdre"
+    },
+    {
+      "id": "s7",
+      "nom": "Village Bénévoles"
+    },
+    {
+      "id": "s8",
+      "nom": "Délégations Bénévoles"
+    },
+    {
+      "id": "s9",
+      "nom": "Camping"
+    },
+    {
+      "id": "s10",
+      "nom": "Village Artiste"
+    },
+    {
+      "id": "s11",
+      "nom": "Local"
+    },
+    {
+      "id": "s12",
+      "nom": "Montage"
+    }
+  ],
+  "mouvements": []
+};
+let state=(()=>{try{const s=localStorage.getItem('fsv74');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEF));}catch(e){return JSON.parse(JSON.stringify(DEF));}})();
+function save(){try{localStorage.setItem('fsv74',JSON.stringify(state));}catch(e){}}
+
+let syncCfg=(()=>{try{return JSON.parse(localStorage.getItem('fsv74_sync'))||{url:'',device:'',autoSend:false,autoPull:false};}catch(e){return{url:'',device:'',autoSend:false,autoPull:false};}})();
+function saveSyncCfg(){localStorage.setItem('fsv74_sync',JSON.stringify(syncCfg));}
+let sendQueue=(()=>{try{return JSON.parse(localStorage.getItem('fsv74_queue'))||[];}catch(e){return[];}})();
+function saveQueue(){localStorage.setItem('fsv74_queue',JSON.stringify(sendQueue));}
+// IDs des mouvements qu'on a nous-même envoyés ou déjà vus — pour ne jamais les réimporter
+let pushedIds=(()=>{try{return new Set(JSON.parse(localStorage.getItem('fsv74_pushed'))||[]);}catch(e){return new Set();}})();
+function savePushedIds(){try{localStorage.setItem('fsv74_pushed',JSON.stringify([...pushedIds]));}catch(e){}}
+let autoPullTimer=null,syncState='idle';
+
+// ══════════════════════════ CALC ══════════════════════════
+// Clé unique par référence + format + unité
+function sku(m){return `${m.pid}|${m.fmt||''}|${m.unite||''}`;}
+function skuLabel(k){
+  const[pid,fmt,unite]=k.split('|');
+  const p=state.produits.find(x=>x.id===pid);
+  return{pid,fmt,unite,nom:p?p.nom:pid};
+}
+
+function calc(){
+  // Structures indexées par SKU (pid|fmt|unite)
+  const C={},CDERVAL={},CBASELOG={},D={},RF={};
+  // PS[standId][sku] = {e,r,trf_out}
+  const PS={};
+  state.stands.forEach(s=>{PS[s.id]={};});
+
+  function initSku(k){
+    if(!C[k]){C[k]=0;CDERVAL[k]=0;CBASELOG[k]=0;D[k]=0;RF[k]=0;}
+    state.stands.forEach(s=>{if(!PS[s.id][k])PS[s.id][k]={e:0,r:0,trf_out:0};});
+  }
+
+  state.mouvements.forEach(m=>{
+    const k=sku(m);
+    initSku(k);
+    if(m.type==='reception'){
+      C[k]+=m.qty;
+      if(m.centrale==='BASELOG') CBASELOG[k]+=m.qty;
+      else CDERVAL[k]+=m.qty;
+    }
+    else if(m.type==='reception_stand'){
+      D[k]+=m.qty;
+      if(PS[m.sid]){if(!PS[m.sid][k])PS[m.sid][k]={e:0,r:0,trf_out:0};PS[m.sid][k].e+=m.qty;}
+    }
+    else if(m.type==='distribution'){
+      C[k]-=m.qty; D[k]+=m.qty;
+      if(m.centrale==='DERVAL') CDERVAL[k]=(CDERVAL[k]||0)-m.qty;
+      else CBASELOG[k]=(CBASELOG[k]||0)-m.qty;
+      if(PS[m.sid]){if(!PS[m.sid][k])PS[m.sid][k]={e:0,r:0,trf_out:0};PS[m.sid][k].e+=m.qty;}
+    }
+    else if(m.type==='transfert'){
+      if(PS[m.sidFrom]){if(!PS[m.sidFrom][k])PS[m.sidFrom][k]={e:0,r:0,trf_out:0};PS[m.sidFrom][k].trf_out+=m.qty;}
+      if(PS[m.sidTo]){if(!PS[m.sidTo][k])PS[m.sidTo][k]={e:0,r:0,trf_out:0};PS[m.sidTo][k].e+=m.qty;}
+    }
+    else if(m.type==='retour_stand'){
+      C[k]+=m.qty; CBASELOG[k]+=m.qty; D[k]-=m.qty;
+      if(PS[m.sid]){if(!PS[m.sid][k])PS[m.sid][k]={e:0,r:0,trf_out:0};PS[m.sid][k].r+=m.qty;}
+    }
+    else if(m.type==='retour_fournisseur'){
+      C[k]-=m.qty; RF[k]+=m.qty; CBASELOG[k]-=m.qty;
+    }
+  });
+
+  // Liste ordonnée de tous les SKUs rencontrés
+  const skus=[...new Set(state.mouvements.map(m=>sku(m)))];
+
+  // Conso réelle par SKU = D + recDirect - retStand
+  const consoReelle={},retStandTotal={};
+  skus.forEach(k=>{
+    retStandTotal[k]=state.mouvements.filter(m=>m.type==='retour_stand'&&sku(m)===k).reduce((a,m)=>a+m.qty,0);
+    const recDirect=state.mouvements.filter(m=>m.type==='reception_stand'&&sku(m)===k).reduce((a,m)=>a+m.qty,0);
+    consoReelle[k]=(D[k]||0)+recDirect-(retStandTotal[k]||0);
+  });
+
+  return{C,CDERVAL,CBASELOG,D,RF,PS,skus,consoReelle,retStandTotal};
+}
+
+function totalRecu(){
+  const t={};
+  state.mouvements.filter(m=>m.type==='reception').forEach(m=>{const k=sku(m);t[k]=(t[k]||0)+m.qty;});
+  return t;
+}
+
+// ══════════════════════════ RENDER ALL ══════════════════════════
+function renderAll(){
+  try{
+    populateSels();renderDash();renderDashStand();renderStocks();
+    renderRec();renderRecStand();renderStands();renderTransferts();
+    renderRetoursCentral();renderRetoursFourn();
+    renderHist();renderCfg();renderSyncTab();
+  }catch(e){
+    console.error('renderAll error:',e);
+    notif('Erreur: '+e.message,'error');
+  }
+}
+
+// ══════════════════════════ CATÉGORIES ══════════════════════════
+// getCategories() — stockées dans state pour être éditables
+const CATEGORIES_DEF=[
+  {key:'tous',    label:'Tous',       ids:null},
+  {key:'soft',    label:'🥤 Soft',    ids:['p01','p02','p03','p04','p05','p06','p61','p07','p08','p09','p10','p11','p12','p13','p14','p15','p16','p17']},
+  {key:'sirop',   label:'🍬 Sirop',   ids:['p20','p21','p22','p23','p24','p25','p26','p27','p28','p29','p30','p31','p32','p33','p34']},
+  {key:'biere',   label:'🍺 Bière',   ids:['p39','p40','p42','p43','p44','p45','p46','p55']},
+  {key:'cider',   label:'🍏 Cider',   ids:['p35','p36','p37','p38']},
+  {key:'ackerman',label:'🍾 Ackerman',ids:['p47','p48','p49','p50','p51','p52']},
+  {key:'vin',     label:'🍷 Vin',     ids:['p56','p57','p58']},
+  {key:'cocktail',label:'🍹 Cocktail',ids:['p53','p54','p59','p60']},
+];
+function getCategories(){return state.categories&&state.categories.length?state.categories:CATEGORIES_DEF;}
+// Alias global pour compatibilité
+let CATEGORIES=getCategories();
+
+// Active filter per select prefix
+const activeFilters={};
+
+function filterChipsHTML(pfx){
+  return `<div class="filter-chips" id="chips-${pfx}">`+
+    getCategories().map(c=>`<button class="chip${(!activeFilters[pfx]||activeFilters[pfx]===c.key)?c.key==='tous'?' chip-active':'':''}" onclick="applyFilter('${pfx}','${c.key}')">${c.label}</button>`).join('')+
+  `</div>`;
+}
+
+function applyFilter(pfx,catKey){
+  activeFilters[pfx]=catKey;
+  const cat=getCategories().find(c=>c.key===catKey);
+  const sel=document.getElementById(pfx+'-produit');
+  if(!sel)return;
+  const produits=cat&&cat.ids?state.produits.filter(p=>cat.ids.includes(p.id)):state.produits;
+  sel.innerHTML=produits.length
+    ?produits.map(p=>`<option value="${p.id}">${p.nom}</option>`).join('')
+    :'<option value="">— Aucune référence —</option>';
+  // Update chip active states
+  const chips=document.getElementById('chips-'+pfx);
+  if(chips)chips.querySelectorAll('.chip').forEach(btn=>{
+    btn.classList.toggle('chip-active',btn.textContent===getCategories().find(c=>c.key===catKey)?.label);
+  });
+  syncFmt(pfx);
+}
+
+// ══════════════════════════ SELECTS ══════════════════════════
+const UNITES_DEF=['pack','bouteille','canette','bib','fût','cuve','sachet','unité'];
+function getUnites(){return state.unites&&state.unites.length?state.unites:UNITES_DEF;}
+function populateSels(){
+  const so=state.stands.map(s=>`<option value="${s.id}">${s.nom}</option>`).join('');
+  const fs='<option value="">— Aucun stand —</option>';
+  ['dist-stand','ret-stand','recs-stand','trf-from','trf-to','distd-stand'].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e){
+      const prev=e.value;
+      e.innerHTML=so||fs;
+      if(prev&&state.stands.some(s=>s.id===prev))e.value=prev;
+    }
+  });
+  const fsh=document.getElementById('filter-stand-h');if(fsh)fsh.innerHTML='<option value="">Tous les stands</option>'+so;
+  const frh=document.getElementById('filter-ref-h');if(frh)frh.innerHTML='<option value="">Toutes les références</option>'+state.produits.map(p=>`<option value="${p.id}">${p.nom}</option>`).join('');
+  // Inject chips and populate each product select
+  ['rec','rec2','dist','distd','ret','retf','recs','trf'].forEach(pfx=>{
+    // Chips
+    const chipsEl=document.getElementById('chips-'+pfx);
+    if(chipsEl){
+      // Re-render chips keeping active state
+      const cur=activeFilters[pfx]||'tous';
+      chipsEl.innerHTML=getCategories().map(c=>`<button class="chip${c.key===cur?' chip-active':''}" onclick="applyFilter('${pfx}','${c.key}')">${c.label}</button>`).join('');
+    }
+    // Product select
+    const cat=getCategories().find(c=>c.key===(activeFilters[pfx]||'tous'));
+    const produits=cat&&cat.ids?state.produits.filter(p=>cat.ids.includes(p.id)):state.produits;
+    // Product select — conserver la sélection courante
+    const sel=document.getElementById(pfx+'-produit');
+    if(sel){
+      const prevVal=sel.value; // sauvegarder la sélection actuelle
+      sel.innerHTML=produits.length?produits.map(p=>`<option value="${p.id}">${p.nom}</option>`).join(''):'<option value="">— Aucune référence —</option>';
+      // Restaurer si le produit est toujours dans la liste filtrée
+      if(prevVal&&produits.some(p=>p.id===prevVal))sel.value=prevVal;
+    }
+    syncFmt(pfx);
+  });
+  updateSyncStatus();updatePendingBadge();
+}
+function syncFmt(pfx){
+  const pEl=document.getElementById(pfx+'-produit');
+  const fEl=document.getElementById(pfx+'-format');
+  const uEl=document.getElementById(pfx+'-unite');
+  const foEl=document.getElementById(pfx+'-fournisseur');
+  if(!pEl||!fEl)return;
+  const p=state.produits.find(x=>x.id===pEl.value);
+  // Préserver format courant si toujours disponible
+  const prevFmt=fEl.value;
+  const formats=p?p.formats:state.formats;
+  fEl.innerHTML=formats.map(f=>`<option value="${f}">${f}</option>`).join('');
+  if(prevFmt&&formats.includes(prevFmt))fEl.value=prevFmt;
+  // Préserver unité courante si toujours disponible
+  if(uEl){
+    const prevU=uEl.value;
+    const unites=p&&p.unites?p.unites:getUnites();
+    uEl.innerHTML=unites.map(u=>`<option value="${u}">${u}</option>`).join('');
+    if(prevU&&unites.includes(prevU))uEl.value=prevU;
+  }
+  // Préserver fournisseur courant si toujours disponible
+  if(foEl){
+    const prevF=foEl.value;
+    const fournisseurs=p&&(p.fournisseurs||p.fournisseur)
+      ?(p.fournisseurs||[p.fournisseur])
+      :(state.fournisseurs||[]);
+    const list=fournisseurs.length?fournisseurs:(state.fournisseurs||['—']);
+    foEl.innerHTML=list.map(f=>`<option value="${f}">${f}</option>`).join('');
+    if(prevF&&list.includes(prevF))foEl.value=prevF;
+  }
+}
+
+// ══════════════════════════ DASHBOARD ══════════════════════════
+let activeDashFilter='tous';
+function setDashFilter(key){activeDashFilter=key;renderDash();}
+function renderDash(){
+  const{C,D,RF,PS,skus,retStandTotal,consoReelle}=calc();
+  const recu=totalRecu();
+  const tC=Object.values(C).reduce((a,b)=>a+b,0);
+  const tD=Object.values(D).reduce((a,b)=>a+b,0);
+  const tRF=Object.values(RF).reduce((a,b)=>a+b,0);
+  const tRetS=Object.values(retStandTotal).reduce((a,b)=>a+b,0);
+  const tConso=Object.values(consoReelle).reduce((a,b)=>a+b,0);
+
+  document.getElementById('kpi-grid').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Stock central</div><div class="kpi-value" style="color:var(--orange)">${tC}</div><div class="kpi-sub">unités dispo</div></div>
+    <div class="kpi"><div class="kpi-label">Distribué</div><div class="kpi-value" style="color:var(--blue)">${tD}</div><div class="kpi-sub">en circulation</div></div>
+    <div class="kpi"><div class="kpi-label">Retours central</div><div class="kpi-value" style="color:var(--purple)">${tRetS}</div><div class="kpi-sub">← depuis stands</div></div>
+    <div class="kpi"><div class="kpi-label">Conso. réelle</div><div class="kpi-value" style="color:var(--green)">${tConso}</div><div class="kpi-sub">distrib+direct−retours</div></div>
+    <div class="kpi"><div class="kpi-label">Retour fourn.</div><div class="kpi-value" style="color:var(--red)">${tRF}</div><div class="kpi-sub">renvoyé</div></div>`;
+
+  // ── Chips filtre catégorie
+  const chipsEl=document.getElementById('chips-dashboard');
+  if(chipsEl){
+    chipsEl.innerHTML=getCategories().map(c=>
+      `<button class="chip${activeDashFilter===c.key?' chip-active':''}" onclick="setDashFilter('${c.key}')">${c.label}</button>`
+    ).join('');
+  }
+  const cat=getCategories().find(c=>c.key===activeDashFilter);
+  const allowedPids=cat&&cat.ids?new Set(cat.ids):null;
+
+  // ── Stock central — affiche tous les produits (filtrés)
+  if(!state.produits.length){
+    document.getElementById('stock-central-table').innerHTML='<div class="empty-state">Configurez des produits</div>';
+  } else {
+    const seenKeys=new Set(skus);
+    state.produits.forEach(p=>{
+      if(allowedPids&&!allowedPids.has(p.id))return;
+      p.formats.forEach(fmt=>{
+        (p.unites||[p.unite]).forEach(unite=>{
+          seenKeys.add(`${p.id}|${fmt}|${unite}`);
+        });
+      });
+    });
+    const allSkus=[...seenKeys].filter(k=>{
+      const{pid}=skuLabel(k);
+      return !allowedPids||allowedPids.has(pid);
+    });
+    let h=`<table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th><th>Reçu</th><th>Central</th><th>Distrib.</th><th>Ret. central</th><th>Conso. réelle</th></tr></thead><tbody>`;
+    allSkus.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const r=recu[k]||0,c=C[k]||0,d=D[k]||0,ret=retStandTotal[k]||0,conso=consoReelle[k]||0;
+      const pct=r>0?Math.round(c/r*100):0;
+      const col=c>0?'var(--green)':c<0?'var(--red)':'var(--text-muted)';
+      h+=`<tr>
+        <td><strong>${nom}</strong></td>
+        <td><span class="badge badge-purple">${fmt||'—'}</span></td>
+        <td class="mono text-muted" style="font-size:11px">${unite}</td>
+        <td class="mono">${r}</td>
+        <td><span class="mono" style="color:${col}">${c}</span>${r>0?`<div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>`:''}
+        </td>
+        <td class="mono">${d}</td>
+        <td><span class="badge badge-purple">${ret}</span></td>
+        <td><span class="badge badge-green">${conso}</span></td>
+      </tr>`;
+    });
+    document.getElementById('stock-central-table').innerHTML=h+'</tbody></table>';
+  }
+
+  // ── Conso par stand
+  if(!state.stands.length){
+    document.getElementById('conso-stand-table').innerHTML='<div class="empty-state">Configurez des stands</div>';
+  } else {
+    let h2=`<table><thead><tr><th>Stand</th><th>Reçu</th><th>Ret. central</th><th>Trf. sortant</th><th>Conso. réelle</th></tr></thead><tbody>`;
+    state.stands.forEach(s=>{
+      const allSkusS=Object.keys(PS[s.id]||{});
+      const e=allSkusS.reduce((a,k)=>a+(PS[s.id][k]?.e||0),0);
+      const r=allSkusS.reduce((a,k)=>a+(PS[s.id][k]?.r||0),0);
+      const trf=allSkusS.reduce((a,k)=>a+(PS[s.id][k]?.trf_out||0),0);
+      h2+=`<tr><td><strong>${s.nom}</strong></td><td class="mono">${e}</td><td class="mono">${r}</td><td class="mono">${trf}</td><td><span class="badge badge-green">${e-r-trf}</span></td></tr>`;
+    });
+    document.getElementById('conso-stand-table').innerHTML=h2+'</tbody></table>';
+  }
+
+  // ── Matrice SKU × stand (seulement si mouvements)
+  if(!state.stands.length||!skus.length){
+    document.getElementById('matrix-table').innerHTML='<div class="empty-state">Aucun mouvement enregistré</div>';
+  } else {
+    let mx=`<table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th>`;
+    state.stands.forEach(s=>mx+=`<th style="white-space:nowrap;font-size:10px">${s.nom}</th>`);
+    mx+='<th>Total</th></tr></thead><tbody>';
+    skus.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const tots=state.stands.map(s=>{const d=PS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+      const tot=tots.reduce((a,b)=>a+b,0);
+      if(tots.every(v=>v===0))return;
+      mx+=`<tr><td><strong>${nom}</strong></td><td><span class="badge badge-purple">${fmt||'—'}</span></td><td class="mono text-muted" style="font-size:11px">${unite}</td>`;
+      tots.forEach(v=>mx+=`<td class="mono" style="color:${v>0?'var(--green)':v<0?'var(--red)':'var(--text-muted)'}">${v||'—'}</td>`);
+      mx+=`<td><span class="badge badge-orange">${tot}</span></td></tr>`;
+    });
+    document.getElementById('matrix-table').innerHTML=mx+'</tbody></table>';
+  }
+
+  // ── Bilan fournisseur — filtre par fournisseur
+  const chipsBilan=document.getElementById('chips-bilan');
+  if(chipsBilan){
+    const fournisseurs=['Tous',...(state.fournisseurs||[])];
+    chipsBilan.innerHTML=fournisseurs.map(f=>
+      `<button class="chip${activeBilanFilter===f?' chip-active':''}" data-action="setBilanFilter" data-val="${f}">${f}</button>`
+    ).join('');
+  }
+  if(!state.produits.length){
+    document.getElementById('bilan-fourn-table').innerHTML='<div class="empty-state">Aucun produit</div>';
+  } else {
+    const filteredProds=activeBilanFilter==='Tous'
+      ?state.produits
+      :state.produits.filter(p=>(p.fournisseurs||[p.fournisseur||'Autres']).includes(activeBilanFilter));
+    const allSkusBf=[...new Set([
+      ...skus.filter(k=>{const{pid}=skuLabel(k);return filteredProds.some(p=>p.id===pid);}),
+      ...filteredProds.flatMap(p=>p.formats.flatMap(f=>(p.unites||[p.unite]).map(u=>`${p.id}|${f}|${u}`)))
+    ])];
+    let bf=`<table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th><th>Livré</th><th>Distrib.</th><th>Ret. stands</th><th>Conso. réelle</th><th>Ret. fourn.</th><th>Solde</th></tr></thead><tbody>`;
+    allSkusBf.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const rs=retStandTotal[k]||0;
+      bf+=`<tr>
+        <td><strong>${nom}</strong></td>
+        <td><span class="badge badge-purple">${fmt||'—'}</span></td>
+        <td class="mono text-muted" style="font-size:11px">${unite}</td>
+        <td class="mono">${recu[k]||0}</td>
+        <td class="mono">${D[k]||0}</td>
+        <td class="mono">${rs}</td>
+        <td><span class="badge badge-green">${consoReelle[k]||0}</span></td>
+        <td><span class="badge badge-red">${RF[k]||0}</span></td>
+        <td><span class="badge ${(C[k]||0)>=0?'badge-blue':'badge-orange'}">${C[k]||0}</span></td>
+      </tr>`;
+    });
+    document.getElementById('bilan-fourn-table').innerHTML=bf+'</tbody></table>';
+  }
+}
+
+let activeDashStand='all';
+function renderDashStand(){
+  const{PS,skus}=calc();
+  const chipsEl=document.getElementById('stand-filter-chips');
+  if(chipsEl){
+    chipsEl.innerHTML=`<button class="chip${activeDashStand==='all'?' chip-active':''}" onclick="setDashStand('all')">Tous</button>`+
+      state.stands.map(s=>`<button class="chip${activeDashStand===s.id?' chip-active':''}" onclick="setDashStand('${s.id}')">${s.nom}</button>`).join('');
+  }
+  const titleEl=document.getElementById('stand-dash-title');
+  const tableEl=document.getElementById('stand-dash-table');
+  if(!tableEl)return;
+  if(!skus.length){tableEl.innerHTML='<div class="empty-state">Aucun mouvement enregistré</div>';return;}
+
+  if(activeDashStand==='all'){
+    if(titleEl)titleEl.textContent='Tous les stands';
+    let h=`<table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th>`;
+    state.stands.forEach(s=>h+=`<th style="white-space:nowrap;font-size:10px">${s.nom}</th>`);
+    h+='<th>Total</th></tr></thead><tbody>';
+    skus.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const tots=state.stands.map(s=>{const d=PS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+      const tot=tots.reduce((a,b)=>a+b,0);
+      if(tots.every(v=>v===0))return;
+      h+=`<tr><td><strong>${nom}</strong></td><td><span class="badge badge-purple">${fmt||'—'}</span></td><td class="mono text-muted" style="font-size:11px">${unite}</td>`;
+      tots.forEach(v=>h+=`<td class="mono" style="color:${v>0?'var(--green)':v<0?'var(--red)':'var(--text-muted)'}">${v||'—'}</td>`);
+      h+=`<td><span class="badge badge-green">${tot}</span></td></tr>`;
+    });
+    tableEl.innerHTML=h+'</tbody></table>';
+  } else {
+    const s=state.stands.find(x=>x.id===activeDashStand);
+    if(titleEl)titleEl.textContent=s?s.nom:'';
+    let h=`<table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th><th>Reçu</th><th>Ret. → Central</th><th>Trf. sortant</th><th>Conso. réelle</th></tr></thead><tbody>`;
+    skus.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const d=PS[activeDashStand][k]||{e:0,r:0,trf_out:0};
+      if(!d.e&&!d.r&&!d.trf_out)return;
+      h+=`<tr>
+        <td><strong>${nom}</strong></td>
+        <td><span class="badge badge-purple">${fmt||'—'}</span></td>
+        <td class="mono text-muted" style="font-size:11px">${unite}</td>
+        <td class="mono">${d.e}</td>
+        <td><span class="badge badge-purple">${d.r}</span></td>
+        <td><span class="badge badge-orange">${d.trf_out}</span></td>
+        <td><span class="badge badge-green">${d.e-d.r-d.trf_out}</span></td>
+      </tr>`;
+    });
+    tableEl.innerHTML=h+'</tbody></table>';
+  }
+}
+function setDashStand(id){activeDashStand=id;renderDashStand();}
+
+function renderStocks(){
+  const{CDERVAL,CBASELOG,C,skus}=calc();
+  const recu=totalRecu();
+  if(!skus.length){
+    ['stock-derval-table','stock-baselog-table','stock-total-table'].forEach(id=>{document.getElementById(id).innerHTML='<div class="empty-state">Aucun mouvement</div>';});
+    return;
+  }
+  function buildTable(stockObj,accentCol){
+    let h=`<table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th><th>Stock actuel</th></tr></thead><tbody>`;
+    skus.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const v=stockObj[k]||0;
+      const r=recu[k]||0;
+      const pct=r>0?Math.round(v/r*100):0;
+      const col=v>0?accentCol:'var(--text-muted)';
+      h+=`<tr>
+        <td><strong>${nom}</strong></td>
+        <td><span class="badge badge-purple">${fmt||'—'}</span></td>
+        <td class="mono text-muted" style="font-size:11px">${unite}</td>
+        <td><span class="mono" style="color:${col};font-size:15px;font-weight:700">${v}</span>
+        <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div></td>
+      </tr>`;
+    });
+    return h+'</tbody></table>';
+  }
+  document.getElementById('stock-derval-table').innerHTML=buildTable(CDERVAL,'var(--orange)');
+  document.getElementById('stock-baselog-table').innerHTML=buildTable(CBASELOG,'var(--blue)');
+  document.getElementById('stock-total-table').innerHTML=buildTable(C,'var(--green)');
+}
+
+function renderRec(){
+  const recs=state.mouvements.filter(m=>m.type==='reception').reverse();
+  function buildTable(recs){
+    if(!recs.length)return '<div class="empty-state">Aucune réception</div>';
+    let h=`<table><thead><tr><th>Date</th><th>Heure</th><th>Référence</th><th>Format</th><th>Unité</th><th>Fournisseur</th><th>Qté</th><th>Note</th></tr></thead><tbody>`;
+    recs.forEach(m=>{
+      const p=state.produits.find(x=>x.id===m.pid);
+      h+=`<tr>
+        <td class="mono text-muted">${m.date||'—'}</td>
+        <td class="mono text-muted">${m.heure}</td>
+        <td>${p?p.nom:m.pid}</td>
+        <td><span class="badge badge-purple">${m.fmt||'—'}</span></td>
+        <td class="mono text-muted" style="font-size:11px">${m.unite||'—'}</td>
+        <td><span class="badge badge-teal">${m.fournisseur||'—'}</span></td>
+        <td class="mono">${m.qty}</td>
+        <td class="text-dim">${m.note||'—'}</td>
+      </tr>`;
+    });
+    return h+'</tbody></table>';
+  }
+  const elD=document.getElementById('liste-receptions-derval');
+  const elB=document.getElementById('liste-receptions-baselog');
+  if(elD)elD.innerHTML=buildTable(recs.filter(m=>m.centrale!=='BASELOG'));
+  if(elB)elB.innerHTML=buildTable(recs.filter(m=>m.centrale==='BASELOG'));
+}
+
+function renderRecStand(){
+  const recs=state.mouvements.filter(m=>m.type==='reception_stand').reverse();
+  if(!recs.length){document.getElementById('liste-rec-stand').innerHTML='<div class="empty-state">Aucune réception directe stand</div>';return;}
+  let h=`<table><thead><tr><th>Heure</th><th>Stand</th><th>Référence</th><th>Format</th><th>Qté</th><th>Note</th></tr></thead><tbody>`;
+  recs.forEach(m=>{const p=state.produits.find(x=>x.id===m.pid),s=state.stands.find(x=>x.id===m.sid);h+=`<tr><td class="mono text-muted">${m.heure}</td><td>${s?s.nom:'?'}</td><td>${p?p.nom:m.pid}</td><td><span class="badge badge-teal">${m.fmt||'—'}</span></td><td class="mono">${m.qty} ${m.unite}</td><td class="text-dim">${m.note||'—'}</td></tr>`;});
+  document.getElementById('liste-rec-stand').innerHTML=h+'</tbody></table>';
+}
+
+function renderStands(){
+  const{PS,skus}=calc();
+  let h=`<table><thead><tr><th>Stand</th><th>Référence</th><th>Format</th><th>Unité</th><th>Reçu</th><th>Retourné</th><th>Chez stand</th></tr></thead><tbody>`;
+  let any=false;
+  state.stands.forEach(s=>{
+    skus.forEach(k=>{
+      const d=PS[s.id][k]||{e:0,r:0,trf_out:0};
+      if(d.e>0){
+        any=true;
+        const{nom,fmt,unite}=skuLabel(k);
+        const reste=d.e-d.r-d.trf_out;
+        h+=`<tr><td>${s.nom}</td><td>${nom}</td><td><span class="badge badge-purple">${fmt||'—'}</span></td><td class="mono text-muted" style="font-size:11px">${unite}</td><td class="mono">${d.e}</td><td class="mono">${d.r}</td><td><span class="badge ${reste>0?'badge-blue':'badge-green'}">${reste}</span></td></tr>`;
+      }
+    });
+  });
+  const table=any?h+'</tbody></table>':'<div class="empty-state">Aucune distribution</div>';
+  ['stock-stands-table','stock-stands-table-derval'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.innerHTML=table;
+  });
+}
+
+function renderTransferts(){
+  const mvts=state.mouvements.filter(m=>m.type==='transfert').reverse();
+  if(!mvts.length){document.getElementById('liste-transferts').innerHTML='<div class="empty-state">Aucun transfert</div>';return;}
+  let h=`<table><thead><tr><th>Heure</th><th>De</th><th>Vers</th><th>Référence</th><th>Format</th><th>Qté</th></tr></thead><tbody>`;
+  mvts.forEach(m=>{const p=state.produits.find(x=>x.id===m.pid),sf=state.stands.find(x=>x.id===m.sidFrom),st=state.stands.find(x=>x.id===m.sidTo);h+=`<tr><td class="mono text-muted">${m.heure}</td><td>${sf?sf.nom:'?'}</td><td>${st?st.nom:'?'}</td><td>${p?p.nom:'?'}</td><td><span class="badge badge-teal">${m.fmt||'—'}</span></td><td class="mono">${m.qty} ${m.unite}</td></tr>`;});
+  document.getElementById('liste-transferts').innerHTML=h+'</tbody></table>';
+}
+
+function renderRetoursCentral(){
+  const el=document.getElementById('liste-retours-central');
+  if(!el)return;
+  const mvts=state.mouvements.filter(m=>m.type==='retour_stand').reverse();
+  if(!mvts.length){el.innerHTML='<div class="empty-state">Aucun retour stand</div>';return;}
+  let h=`<table><thead><tr><th>Date</th><th>Heure</th><th>Stand</th><th>Référence</th><th>Format</th><th>Unité</th><th>Qté</th></tr></thead><tbody>`;
+  mvts.forEach(m=>{
+    const p=state.produits.find(x=>x.id===m.pid),s=state.stands.find(x=>x.id===m.sid);
+    h+=`<tr><td class="mono text-muted">${m.date||'—'}</td><td class="mono text-muted">${m.heure}</td><td>${s?s.nom:'?'}</td><td>${p?p.nom:'?'}</td><td><span class="badge badge-orange">${m.fmt||'—'}</span></td><td class="mono text-muted" style="font-size:11px">${m.unite}</td><td class="mono">${m.qty}</td></tr>`;
+  });
+  el.innerHTML=h+'</tbody></table>';
+}
+
+function renderRetoursFourn(){
+  const el=document.getElementById('liste-retours-fourn');
+  if(!el)return;
+  const mvts=state.mouvements.filter(m=>m.type==='retour_fournisseur').reverse();
+  if(!mvts.length){el.innerHTML='<div class="empty-state">Aucun retour fournisseur</div>';return;}
+  let h=`<table><thead><tr><th>Date</th><th>Heure</th><th>Référence</th><th>Format</th><th>Unité</th><th>Qté</th><th>Note</th></tr></thead><tbody>`;
+  mvts.forEach(m=>{
+    const p=state.produits.find(x=>x.id===m.pid);
+    h+=`<tr><td class="mono text-muted">${m.date||'—'}</td><td class="mono text-muted">${m.heure}</td><td>${p?p.nom:'?'}</td><td><span class="badge badge-red">${m.fmt||'—'}</span></td><td class="mono text-muted" style="font-size:11px">${m.unite}</td><td class="mono">${m.qty}</td><td class="text-dim">${m.note||'—'}</td></tr>`;
+  });
+  el.innerHTML=h+'</tbody></table>';
+}
+
+function renderHist(){
+  const s=document.getElementById('search-hist')?.value.toLowerCase()||'';
+  const tf=document.getElementById('filter-type')?.value||'';
+  const sf=document.getElementById('filter-stand-h')?.value||'';
+  const rf=document.getElementById('filter-ref-h')?.value||'';
+  const LBL={
+    reception:['badge-green','RÉC. CENTRAL'],reception_stand:['badge-teal','RÉC. STAND'],
+    distribution:['badge-blue','DISTRIB.'],transfert:['badge-purple','TRANSFERT'],
+    retour_stand:['badge-orange','RET. STAND'],retour_fournisseur:['badge-red','RET. FOURN.']
+  };
+  const mvts=[...state.mouvements].reverse().filter(m=>{
+    if(tf&&m.type!==tf)return false;
+    if(sf&&m.sid!==sf&&m.sidFrom!==sf&&m.sidTo!==sf)return false;
+    if(rf&&m.pid!==rf)return false;
+    if(s){const p=state.produits.find(x=>x.id===m.pid),st=state.stands.find(x=>x.id===m.sid),sf2=state.stands.find(x=>x.id===m.sidFrom),st2=state.stands.find(x=>x.id===m.sidTo);if(![p?.nom,st?.nom,sf2?.nom,st2?.nom,m.note,m.heure,m.fmt].join(' ').toLowerCase().includes(s))return false;}
+    return true;
+  });
+  if(!mvts.length){document.getElementById('historique-table').innerHTML='<div class="empty-state">Aucun mouvement</div>';return;}
+  let h=`<table><thead><tr><th>Date</th><th>Heure</th><th>Type</th><th>Référence</th><th>Unité</th><th>Format</th><th>Source</th><th>Destination</th><th>Fournisseur</th><th>Qté</th><th></th></tr></thead><tbody>`;
+  mvts.forEach(m=>{
+    const p=state.produits.find(x=>x.id===m.pid);
+    const sf2=state.stands.find(x=>x.id===m.sidFrom);
+    const st2=state.stands.find(x=>x.id===m.sidTo);
+    const sta=state.stands.find(x=>x.id===m.sid);
+    const fourn=m.fournisseur||'—';
+    let src='—', dst='—';
+    if(m.type==='reception')            { src=fourn; dst=m.centrale==='BASELOG'?'Central BASE LOG':'Central DERVAL'; }
+    else if(m.type==='reception_stand') { src=fourn; dst=sta?.nom||'?'; }
+    else if(m.type==='distribution')    { src=m.centrale==='DERVAL'?'Central DERVAL':'Central BASE LOG'; dst=sta?.nom||'?'; }
+    else if(m.type==='transfert')       { src=sf2?.nom||'?'; dst=st2?.nom||'?'; }
+    else if(m.type==='retour_stand')    { src=sta?.nom||'?'; dst='Central BASE LOG'; }
+    else if(m.type==='retour_fournisseur'){ src='Central BASE LOG'; dst=fourn; }
+    const[bc,bl]=LBL[m.type]||['badge-blue',m.type];
+    h+=`<tr>
+      <td class="mono text-muted" style="white-space:nowrap">${m.date||'—'}</td>
+      <td class="mono text-muted" style="white-space:nowrap">${m.heure}</td>
+      <td><span class="badge ${bc}" style="font-size:10px;white-space:nowrap">${bl}</span></td>
+      <td style="white-space:nowrap;font-size:12px">${p?p.nom:'—'}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${m.unite||'—'}</td>
+      <td><span class="badge badge-purple">${m.fmt||'—'}</span></td>
+      <td style="font-size:12px">${src}</td>
+      <td style="font-size:12px;color:var(--text-dim)">${dst}</td>
+      <td style="font-size:11px"><span class="badge badge-teal">${fourn}</span></td>
+      <td class="mono">${m.qty}</td>
+      <td><button class="btn btn-red btn-icon btn-sm" onclick="deleteMouvement('${m.id}')" title="Supprimer">✕</button></td>
+    </tr>`;
+  });
+  document.getElementById('historique-table').innerHTML=h+'</tbody></table>';
+}
+
+function renderCfg(){
+  const fc=document.getElementById('formats-config');
+  if(fc)fc.innerHTML=state.formats.map(f=>`<span class="tag" data-action="delFmt" data-val="${f}" style="cursor:pointer">${f} ✕</span>`).join('');
+  const nc=document.getElementById('np-fmts');
+  if(nc)nc.innerHTML=state.formats.map(f=>`<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="${f}" style="width:auto;cursor:pointer;width:16px;height:16px"> ${f}</label>`).join('');
+  const pc=document.getElementById('produits-config');
+  if(pc){
+    if(!state.produits.length)pc.innerHTML='<div class="empty-state">Aucun produit</div>';
+    else pc.innerHTML=state.produits.map(p=>`
+      <div class="list-item">
+        <div class="list-item-main">
+          <div class="list-item-name">${p.nom}</div>
+          <div class="list-item-sub">${p.formats.map(f=>`<span class="badge badge-purple" style="margin:1px">${f}</span>`).join('')} ${(p.unites||[p.unite]).map(u=>`<span class="badge badge-blue" style="margin:1px">${u}</span>`).join('')} ${(p.fournisseurs||[p.fournisseur||'—']).map(f=>`<span class="badge badge-orange" style="font-size:10px;margin:1px">${f}</span>`).join('')}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="editProd('${p.id}')">✏</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="delProd('${p.id}')">✕</button>
+      </div>`).join('');
+  }
+  const sc=document.getElementById('stands-config');
+  if(sc){
+    if(!state.stands.length)sc.innerHTML='<div class="empty-state">Aucun stand</div>';
+    else sc.innerHTML=state.stands.map(s=>`
+      <div class="list-item">
+        <div class="list-item-main"><div class="list-item-name">${s.nom}</div></div>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="renameStand('${s.id}')">✏</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="delStand('${s.id}')">✕</button>
+      </div>`).join('');
+  }
+  // Catégories
+  const catEl=document.getElementById('categories-config');
+  if(catEl){
+    const cats=getCategories().filter(c=>c.key!=='tous');
+    catEl.innerHTML=cats.map(c=>`
+      <div class="list-item" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;width:100%">
+          <strong>${c.label}</strong>
+          <button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="editCategorie('${c.key}')">✏</button>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="delCategorie('${c.key}')">✕</button>
+        </div>
+        <div class="flex flex-wrap" style="gap:4px">
+          ${state.produits.filter(p=>(c.ids||[]).includes(p.id)).map(p=>`
+            <span class="badge badge-purple" style="cursor:pointer;font-size:11px" onclick="toggleProduitCategorie('${c.key}','${p.id}')" title="Retirer">${p.nom} ✕</span>
+          `).join('')}
+          ${state.produits.filter(p=>!(c.ids||[]).includes(p.id)).map(p=>`
+            <span class="badge" style="cursor:pointer;font-size:11px;opacity:.4" onclick="toggleProduitCategorie('${c.key}','${p.id}')" title="Ajouter">+ ${p.nom}</span>
+          `).join('')}
+        </div>
+      </div>`).join('');
+  }
+  if(fournisseursEl){
+    const fList=state.fournisseurs||[];
+    fournisseursEl.innerHTML=fList.length
+      ?fList.map(f=>`<span class="tag" data-action="delFournisseur" data-val="${f}" style="cursor:pointer">${f} ✕</span>`).join('')
+      :'<div class="text-muted" style="font-size:12px">Aucun fournisseur</div>';
+  }
+  const unitesEl=document.getElementById('unites-config');
+  if(unitesEl){
+    const uList=getUnites();
+    unitesEl.innerHTML=uList.map(u=>`<span class="tag" data-action="delUnite" data-val="${u}" style="cursor:pointer">${u} ✕</span>`).join('');
+  }
+  // Checkboxes unités dans le formulaire d'ajout
+  const npUnites=document.getElementById('np-unites');
+  if(npUnites){
+    npUnites.innerHTML=getUnites().map(u=>`<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="${u}" style="width:auto;cursor:pointer;width:16px;height:16px"> ${u}</label>`).join('');
+  }
+  // Checkboxes fournisseurs dans le formulaire d'ajout
+  const npFourn=document.getElementById('np-fournisseurs');
+  if(npFourn){
+    npFourn.innerHTML=(state.fournisseurs||[]).map(f=>`<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="${f}" style="width:auto;cursor:pointer;width:16px;height:16px"> ${f}</label>`).join('');
+  }
+}
+
+function renderSyncTab(){
+  document.getElementById('sheet-url').value=syncCfg.url||'';
+  document.getElementById('device-name').value=syncCfg.device||'';
+  document.getElementById('auto-sync-chk').checked=syncCfg.autoSend||false;
+  document.getElementById('auto-pull-chk').checked=syncCfg.autoPull||false;
+  document.getElementById('sync-actions').style.display=syncCfg.url?'block':'none';
+  const qs=document.getElementById('queue-status');
+  if(qs)qs.innerHTML=sendQueue.length?`<span class="badge badge-yellow">${sendQueue.length} mouvement(s) en attente d'envoi</span>`:'<span class="text-muted" style="font-size:12px">File vide ✓</span>';
+  updateSyncStatus();updatePendingBadge();
+}
+
+// ══════════════════════════ SYNC ══════════════════════════
+function updateSyncStatus(){
+  const pill=document.getElementById('sync-pill'),dot=document.getElementById('sync-dot'),lbl=document.getElementById('sync-label');
+  if(!pill)return;
+  if(!syncCfg.url){pill.className='sync-pill disconnected';dot.className='sync-dot';lbl.textContent='Hors ligne';}
+  else if(syncState==='syncing'){pill.className='sync-pill syncing';dot.className='sync-dot pulse';lbl.textContent='Sync…';}
+  else if(syncState==='error'){pill.className='sync-pill error';dot.className='sync-dot';lbl.textContent='Erreur';}
+  else{pill.className='sync-pill connected';dot.className='sync-dot';lbl.textContent='En ligne ✓';}
+}
+function updatePendingBadge(){
+  const el=document.getElementById('pending-badge');
+  if(el)el.innerHTML=sendQueue.length?`<span class="pending-badge">${sendQueue.length}</span>`:'';
+}
+
+async function testerConnexion(){
+  const url=document.getElementById('sheet-url').value.trim();
+  if(!url){notif('Entrez une URL','error');return;}
+  syncState='syncing';updateSyncStatus();notif('Test…','info');
+  logSync('⚡ Test connexion…');
+  try{
+    const r=await fetch(url,{method:'POST',body:JSON.stringify({action:'getMouvements'}),headers:{'Content-Type':'text/plain'}});
+    const txt=await r.text();
+    let d;try{d=JSON.parse(txt);}catch(ex){throw new Error('Réponse non-JSON ('+r.status+') : '+txt.slice(0,120));}
+    if(d.ok){syncState='idle';updateSyncStatus();notif('✓ Connexion réussie !','success');logSync('✓ Test OK');}
+    else throw new Error(d.error||'Erreur serveur');
+  }catch(e){
+    syncState='error';updateSyncStatus();
+    notif('Connexion impossible','error');
+    logSync('✗ Test : '+e.message);
+  }
+}
+function sauvegarderConnexion(){
+  syncCfg.url=document.getElementById('sheet-url').value.trim();
+  syncCfg.device=document.getElementById('device-name').value.trim()||'Appareil';
+  saveSyncCfg();renderSyncTab();notif('Connexion enregistrée','success');
+}
+function toggleAutoSync(){syncCfg.autoSend=document.getElementById('auto-sync-chk').checked;saveSyncCfg();}
+function toggleAutoPull(){
+  syncCfg.autoPull=document.getElementById('auto-pull-chk').checked;saveSyncCfg();
+  if(syncCfg.autoPull){autoPullTimer=setInterval(()=>pullMouvements(true),30000);logSync('Auto-pull activé');}
+  else{clearInterval(autoPullTimer);logSync('Auto-pull désactivé');}
+}
+
+async function pushMouvement(m){
+  if(!syncCfg.url)return;
+  const p=state.produits.find(x=>x.id===m.pid);
+  const s=state.stands.find(x=>x.id===m.sid);
+  const sf=state.stands.find(x=>x.id===m.sidFrom);
+  const st=state.stands.find(x=>x.id===m.sidTo);
+  const now_str=m.date||new Date().toLocaleDateString('fr');
+
+  // ── 1. Envoyer le mouvement (léger, prioritaire)
+  const payload={
+    action:'addMouvement',
+    mouvement:{
+      id:m.id,date:now_str,heure:m.heure,type:m.type,
+      ref:p?p.nom:m.pid,unite:m.unite,fmt:m.fmt||'',
+      standSrc:sf?sf.nom:(s?s.nom:''),
+      standDst:st?st.nom:'',
+      fournisseur:m.fournisseur||'',
+      centrale:m.centrale||'',
+      qty:m.qty,note:m.note||'',appareil:syncCfg.device||'?'
+    }
+  };
+
+  try{
+    syncState='syncing';updateSyncStatus();
+    const r=await fetch(syncCfg.url,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    const d=await r.json();
+    if(d.ok){
+      syncState='idle';
+      logSync(`✓ ${m.type} envoyé`);
+      // ── 2. Envoyer les snapshots en arrière-plan (séparé, non bloquant)
+      pushSnapshots().catch(e=>logSync('⚠ Snapshot : '+e.message));
+    } else throw new Error(d.error);
+  }catch(e){
+    syncState='error';updateSyncStatus();sendQueue.push(m);saveQueue();
+    logSync(`✗ Échec — file (${sendQueue.length})`);updatePendingBadge();
+  }
+  updateSyncStatus();
+}
+
+async function pushSnapshots(){
+  if(!syncCfg.url)return;
+  const{C,CDERVAL,CBASELOG,PS,skus}=calc();
+  const now_str=new Date().toLocaleDateString('fr');
+
+  // Stocks Centraux
+  const stocks=skus.map(k=>{
+    const{nom,fmt,unite}=skuLabel(k);
+    return[nom,fmt,unite,CDERVAL[k]||0,CBASELOG[k]||0,C[k]||0,now_str];
+  });
+
+  // Conso Réelle Globale
+  const consoGlobaleHeader=['Référence','Format','Unité',...state.stands.map(s=>s.nom),'Total'];
+  const consoGlobale=skus.map(k=>{
+    const{nom,fmt,unite}=skuLabel(k);
+    const tots=state.stands.map(s=>{const d=PS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+    return[nom,fmt,unite,...tots,tots.reduce((a,b)=>a+b,0)];
+  });
+
+  // Par stand
+  const stands=state.stands.map(s=>{
+    const rows=skus.map(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const d=PS[s.id][k]||{e:0,r:0,trf_out:0};
+      return[nom,fmt,unite,d.e,d.r,d.trf_out,d.e-d.r-d.trf_out,now_str];
+    }).filter(r=>r[3]||r[4]||r[5]);
+    return{nom:s.nom,rows};
+  });
+
+  const r=await fetch(syncCfg.url,{method:'POST',body:JSON.stringify({
+    action:'updateSnapshots',
+    snapshot:{stocks,consoGlobaleHeader,consoGlobale,stands}
+  }),headers:{'Content-Type':'text/plain'}});
+  const d=await r.json();
+  if(d.ok) logSync('✓ Snapshots mis à jour');
+  else throw new Error(d.error||'Snapshot échoué');
+}
+
+async function pullMouvements(silent=false){
+  if(!syncCfg.url){if(!silent)notif('Configurez la connexion','error');return;}
+  if(!silent)notif('Récupération…','info');syncState='syncing';updateSyncStatus();
+  try{
+    const r=await fetch(syncCfg.url,{method:'POST',body:JSON.stringify({action:'getMouvements'}),headers:{'Content-Type':'text/plain'}});
+    const txt=await r.text();
+    let d;try{d=JSON.parse(txt);}catch(ex){throw new Error('Non-JSON : '+txt.slice(0,80));}
+    if(!d.ok)throw new Error(d.error||'Erreur serveur');
+    const existing=new Set(state.mouvements.map(m=>m.id));
+    let added=0;
+    (d.rows||[]).forEach((row,idx)=>{
+      // Ordre colonnes Sheet : Date, Heure, Type, Référence, Unité, Format, Source, Destination, Fournisseur, Centrale, Quantité, Note, Appareil
+      const[date,heure,type,ref,unite,fmt,standSrc,standDst,fournisseur,centrale,qty,note,appareil]=row.map(x=>String(x||'').trim());
+      // Ignorer lignes vides, mal formées, ou avec dates timestamp corrompues
+      if(!type||!ref||ref==='—'||ref==='undefined')return;
+      if(date.includes('T')&&date.includes('Z'))return;
+      if(heure.includes('T')&&heure.includes('Z'))return;
+      if(date.includes('1899')||heure.includes('1899'))return;
+      // Ignorer quantités nulles ou négatives
+      const qtyNum=parseFloat(qty)||0;
+      if(qtyNum<=0)return;
+      // Ignorer les IDs qui commencent par sheet_ (nos propres mouvements déjà envoyés)
+      // Le filtre pushedIds gère ça mais double sécurité sur qty=0
+      // Créer un ID stable basé sur date+heure+type+ref pour éviter doublons
+      const stableId='sheet_'+[date,heure,type,ref,fmt,qtyNum].join('|').replace(/\s/g,'_');
+      // Ne pas réimporter nos propres mouvements ni ceux déjà vus
+      if(existing.has(stableId)||pushedIds.has(stableId))return;
+      existing.add(stableId);
+      // Résoudre les IDs depuis les noms
+      const p=state.produits.find(x=>x.nom===ref);
+      const sSrc=state.stands.find(x=>x.nom===standSrc);
+      const sDst=state.stands.find(x=>x.nom===standDst);
+      // Déterminer sid, sidFrom, sidTo selon le type
+      let sid='',sidFrom='',sidTo='';
+      if(type==='distribution'||type==='retour_stand'||type==='reception_stand'){
+        sid=sDst?sDst.id:(sSrc?sSrc.id:'');
+        if(type==='distribution')sid=sDst?sDst.id:'';
+        if(type==='retour_stand')sid=sSrc?sSrc.id:'';
+        if(type==='reception_stand')sid=sDst?sDst.id:'';
+      } else if(type==='transfert'){
+        sidFrom=sSrc?sSrc.id:'';sidTo=sDst?sDst.id:'';
+      }
+      // Centrale : lire depuis la colonne dédiée, sinon déduire
+      const centraleVal=centrale||( standDst==='Central BASE LOG'?'BASELOG':'DERVAL');
+      state.mouvements.push({
+        id:stableId,date,heure,type,
+        pid:p?p.id:ref,
+        sid,sidFrom,sidTo,
+        fmt,qty:qtyNum,
+        unite,note,fournisseur,appareil,
+        centrale:centraleVal
+      });
+      added++;
+    });
+    save();renderAll();syncState='idle';updateSyncStatus();
+    logSync(`⬇ Pull : ${added} nouveau(x) mouvement(s)`);
+    if(!silent)notif(`⬇ ${added} mouvement(s) récupéré(s)`,added>0?'success':'info');
+  }catch(e){
+    syncState='error';updateSyncStatus();
+    logSync('✗ Pull échoué : '+e.message);
+    if(!silent)notif('Erreur récupération','error');
+  }
+}
+
+async function pushConfig(){
+  if(!syncCfg.url){notif('Configurez la connexion','error');return;}
+  logSync('⬆ Envoi config…');
+  try{
+    const r=await fetch(syncCfg.url,{method:'POST',body:JSON.stringify({action:'syncConfig',produits:state.produits,stands:state.stands,formats:state.formats}),headers:{'Content-Type':'text/plain'}});
+    const txt=await r.text();
+    let d;try{d=JSON.parse(txt);}catch(ex){throw new Error('Réponse non-JSON : '+txt.slice(0,100));}
+    if(d.ok){notif('✓ Config envoyée','success');logSync('⬆ Config envoyée ✓');}
+    else throw new Error(d.error||'Erreur serveur');
+  }catch(e){notif('Erreur config','error');logSync('✗ Config : '+e.message);}
+}
+
+async function pullConfig(){
+  if(!syncCfg.url){notif('Configurez la connexion','error');return;}
+  logSync('⬇ Récupération config…');
+  try{
+    const r=await fetch(syncCfg.url,{method:'POST',body:JSON.stringify({action:'getConfig'}),headers:{'Content-Type':'text/plain'}});
+    const txt=await r.text();
+    let d;try{d=JSON.parse(txt);}catch(ex){throw new Error('Réponse non-JSON : '+txt.slice(0,100));}
+    if(!d.ok||!d.config)throw new Error('Config vide ou inexistante');
+    if(d.config.produits_json)state.produits=d.config.produits_json;
+    if(d.config.stands_json)state.stands=d.config.stands_json;
+    if(d.config.formats_json)state.formats=d.config.formats_json;
+    save();renderAll();notif('✓ Config récupérée','success');logSync('⬇ Config récupérée ✓');
+  }catch(e){notif('Erreur','error');logSync('✗ Config pull : '+e.message);}
+}
+
+async function flushQueue(){
+  if(!sendQueue.length){notif('File vide','info');return;}
+  logSync(`↑ Envoi file (${sendQueue.length} mouvement(s))…`);
+  const toSend=[...sendQueue];sendQueue=[];saveQueue();updatePendingBadge();
+  let ok=0,fail=0;
+  for(const m of toSend){
+    try{
+      const p=state.produits.find(x=>x.id===m.pid),s=state.stands.find(x=>x.id===m.sid),sf=state.stands.find(x=>x.id===m.sidFrom),st=state.stands.find(x=>x.id===m.sidTo);
+      const payload={action:'addMouvement',mouvement:{id:m.id,date:m.date||'',heure:m.heure,type:m.type,ref:p?p.nom:m.pid,unite:m.unite,fmt:m.fmt||'',standSrc:sf?sf.nom:(s?s.nom:''),standDst:st?st.nom:'',fournisseur:m.fournisseur||'',centrale:m.centrale||'',qty:m.qty,note:m.note||'',appareil:syncCfg.device||'?'}};
+      const r=await fetch(syncCfg.url,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+      const txt=await r.text();
+      let d;try{d=JSON.parse(txt);}catch(ex){throw new Error('Non-JSON : '+txt.slice(0,80));}
+      if(d.ok)ok++;else throw new Error(d.error||'Erreur serveur');
+    }catch(e){
+      fail++;sendQueue.push(m);saveQueue();
+      logSync('✗ Mouvement échoué : '+e.message);
+    }
+  }
+  updatePendingBadge();renderSyncTab();
+  if(fail===0)notif(`✓ ${ok} mouvement(s) envoyé(s)`,'success');
+  else notif(`${ok} envoyé(s), ${fail} échoué(s)`,'error');
+  logSync(`File : ${ok} ✓ ${fail} ✗`);
+  if(ok>0) pushSnapshots().catch(e=>logSync('⚠ Snapshot : '+e.message));
+}
+
+// ══════════════════════════ MOUVEMENTS ══════════════════════════
+async function addMouvement(m){
+  state.mouvements.push(m);
+  pushedIds.add(m.id);
+  // Calculer le stableId EXACTEMENT comme le pull le ferait depuis le Sheet
+  const p=state.produits.find(x=>x.id===m.pid);
+  const ref=p?p.nom:m.pid;
+  // Le Sheet remplace les espaces par _ dans le stableId
+  const stableId='sheet_'+[m.date||'',m.heure,m.type,ref,m.fmt||'',m.qty].join('|').replace(/\s/g,'_');
+  pushedIds.add(stableId);
+  // Aussi ajouter avec le fournisseur dans la clé (nouveau format Sheet)
+  const stableId2='sheet_'+[m.date||'',m.heure,m.type,ref,m.fmt||'',m.fournisseur||''].join('|').replace(/\s/g,'_');
+  pushedIds.add(stableId2);
+  savePushedIds();
+  save();renderAll();
+  if(syncCfg.autoSend&&syncCfg.url)await pushMouvement(m);
+}
+
+function doReception(centrale){
+  const pfx=centrale==='BASELOG'?'rec2':'rec';
+  const pid=document.getElementById(pfx+'-produit').value;
+  const fmt=document.getElementById(pfx+'-format').value;
+  const qty=parseFloat(document.getElementById(pfx+'-qty').value);
+  const unite=document.getElementById(pfx+'-unite').value;
+  const note=document.getElementById(pfx+'-note').value;
+  const fournisseur=document.getElementById(pfx+'-fournisseur')?.value||'';
+  if(!pid||!qty||qty<=0){notif('Remplissez tous les champs','error');return;}
+  addMouvement({id:uid(),type:'reception',centrale:centrale||'DERVAL',pid,fmt,qty,unite,note,fournisseur,date:today(),heure:now(),appareil:syncCfg.device||'?'});
+  document.getElementById(pfx+'-qty').value='';
+  document.getElementById(pfx+'-note').value='';
+  notif(`✓ Réceptionné ${centrale} — ${qty} ${unite} ${fmt} (${fournisseur||'—'})`);
+}
+
+function doReceptionStand(){
+  const sid=document.getElementById('recs-stand').value;
+  const pid=document.getElementById('recs-produit').value;
+  const fmt=document.getElementById('recs-format').value;
+  const qty=parseFloat(document.getElementById('recs-qty').value);
+  const unite=document.getElementById('recs-unite').value;
+  const note=document.getElementById('recs-note').value;
+  const fournisseur=document.getElementById('recs-fournisseur')?.value||'';
+  if(!sid||!pid||!qty||qty<=0){notif('Remplissez tous les champs','error');return;}
+  const s=state.stands.find(x=>x.id===sid);
+  addMouvement({id:uid(),type:'reception_stand',sid,pid,fmt,qty,unite,note,fournisseur,date:today(),heure:now(),appareil:syncCfg.device||'?'});
+  document.getElementById('recs-qty').value='';
+  document.getElementById('recs-note').value='';
+  notif(`✓ Réceptionné sur ${s?.nom} : ${qty} ${unite} ${fmt} (${fournisseur||'—'})`);
+}
+
+function doDistribution(centrale='BASELOG'){
+  const pfx=centrale==='DERVAL'?'distd':'dist';
+  const sid=document.getElementById(pfx+'-stand').value;
+  const pid=document.getElementById(pfx+'-produit').value;
+  const fmt=document.getElementById(pfx+'-format').value;
+  const qty=parseFloat(document.getElementById(pfx+'-qty').value);
+  const unite=document.getElementById(pfx+'-unite').value;
+  const note=document.getElementById(pfx+'-note').value;
+  if(!sid||!pid||!qty||qty<=0){notif('Remplissez tous les champs','error');return;}
+  const{CDERVAL,CBASELOG}=calc();
+  const k=`${pid}|${fmt}|${unite}`;
+  const stock=centrale==='DERVAL'?(CDERVAL[k]||0):(CBASELOG[k]||0);
+  if(stock<qty){notif(`⚠ Stock ${centrale} insuffisant — ${stock} ${unite} dispo`,'error');return;}
+  const s=state.stands.find(x=>x.id===sid);
+  addMouvement({id:uid(),type:'distribution',centrale,sid,pid,fmt,qty,unite,note,date:today(),heure:now(),appareil:syncCfg.device||'?'});
+  document.getElementById(pfx+'-qty').value='';
+  document.getElementById(pfx+'-note').value='';
+  notif(`✓ Distribué depuis ${centrale} → ${s?.nom} : ${qty} ${unite} — ${fmt}`);
+}
+
+function doTransfert(){
+  const sidFrom=document.getElementById('trf-from').value,sidTo=document.getElementById('trf-to').value;
+  const pid=document.getElementById('trf-produit').value,fmt=document.getElementById('trf-format').value;
+  const qty=parseFloat(document.getElementById('trf-qty').value),unite=document.getElementById('trf-unite').value,note=document.getElementById('trf-note').value;
+  if(!sidFrom||!sidTo||!pid||!qty||qty<=0){notif('Remplissez tous les champs','error');return;}
+  if(sidFrom===sidTo){notif('Source et destination identiques','error');return;}
+  const sf=state.stands.find(x=>x.id===sidFrom),st=state.stands.find(x=>x.id===sidTo);
+  addMouvement({id:uid(),type:'transfert',sidFrom,sidTo,pid,fmt,qty,unite,note,date:today(),heure:now(),appareil:syncCfg.device||'?'});
+  document.getElementById('trf-qty').value='';document.getElementById('trf-note').value='';
+  notif(`✓ Transfert ${sf?.nom} → ${st?.nom} : ${qty} ${unite}`);
+}
+
+function doRetour(type){
+  if(type==='stand'){
+    const sid=document.getElementById('ret-stand').value,pid=document.getElementById('ret-produit').value,fmt=document.getElementById('ret-format').value;
+    const qty=parseFloat(document.getElementById('ret-qty').value),unite=document.getElementById('ret-unite').value;
+    if(!sid||!pid||!qty||qty<=0){notif('Remplissez tous les champs','error');return;}
+    addMouvement({id:uid(),type:'retour_stand',sid,pid,fmt,qty,unite,date:today(),heure:now(),appareil:syncCfg.device||'?'});
+    document.getElementById('ret-qty').value='';notif('✓ Retour stand enregistré');
+  }else{
+    const pid=document.getElementById('retf-produit').value,fmt=document.getElementById('retf-format').value;
+    const qty=parseFloat(document.getElementById('retf-qty').value),unite=document.getElementById('retf-unite').value,note=document.getElementById('retf-note').value;
+    if(!pid||!qty||qty<=0){notif('Remplissez tous les champs','error');return;}
+    const{CBASELOG}=calc();
+    const k=`${pid}|${fmt}|${unite}`;
+    if((CBASELOG[k]||0)<qty){notif(`⚠ Stock BASE LOG insuffisant — ${CBASELOG[k]||0} dispo`,'error');return;}
+    addMouvement({id:uid(),type:'retour_fournisseur',centrale:'BASELOG',pid,fmt,qty,unite,note,date:today(),heure:now(),appareil:syncCfg.device||'?'});
+    document.getElementById('retf-qty').value='';document.getElementById('retf-note').value='';
+    notif('✓ Retour fournisseur enregistré');
+  }
+}
+
+// ══════════════════════════ CONFIG ACTIONS ══════════════════════════
+// ── Bilan fournisseur filter
+let activeBilanFilter='Tous';
+function setBilanFilter(f){activeBilanFilter=f;renderDash();}
+
+function ajouterCategorie(){
+  const label=document.getElementById('nc-label').value.trim();
+  if(!label){notif('Entrez un nom de catégorie','error');return;}
+  if(!state.categories)state.categories=JSON.parse(JSON.stringify(CATEGORIES_DEF));
+  const key='cat_'+uid();
+  state.categories.push({key,label,ids:[]});
+  document.getElementById('nc-label').value='';
+  save();renderCfg();populateSels();notif(`Catégorie "${label}" créée`);
+}
+function delCategorie(key){
+  if(!confirm('Supprimer cette catégorie ?'))return;
+  if(!state.categories)state.categories=JSON.parse(JSON.stringify(CATEGORIES_DEF));
+  state.categories=state.categories.filter(c=>c.key!==key);
+  save();renderCfg();populateSels();
+}
+function editCategorie(key){
+  const cats=getCategories();
+  const c=cats.find(x=>x.key===key);if(!c)return;
+  const l=prompt('Nom de la catégorie :',c.label);
+  if(l===null)return;
+  if(!state.categories)state.categories=JSON.parse(JSON.stringify(CATEGORIES_DEF));
+  const sc=state.categories.find(x=>x.key===key);
+  if(sc)sc.label=l.trim()||sc.label;
+  save();renderCfg();populateSels();
+}
+function toggleProduitCategorie(catKey,pid){
+  if(!state.categories)state.categories=JSON.parse(JSON.stringify(CATEGORIES_DEF));
+  const c=state.categories.find(x=>x.key===catKey);if(!c)return;
+  if(!c.ids)c.ids=[];
+  const idx=c.ids.indexOf(pid);
+  if(idx>=0)c.ids.splice(idx,1);
+  else c.ids.push(pid);
+  save();renderCfg();populateSels();
+}
+function ajouterFournisseur(){
+  const n=document.getElementById('nf2-nom').value.trim();
+  if(!n)return;
+  if(!state.fournisseurs)state.fournisseurs=[];
+  if(state.fournisseurs.includes(n)){notif('Existe déjà','error');return;}
+  state.fournisseurs.push(n);
+  document.getElementById('nf2-nom').value='';
+  save();renderCfg();notif(`Fournisseur "${n}" ajouté`);
+}
+
+function exportBilanPDF(){
+  const{C,D,RF,skus,retStandTotal,consoReelle}=calc();
+  const recu=totalRecu();
+  const fournisseur=activeBilanFilter==='Tous'?'Tous fournisseurs':activeBilanFilter;
+  const filteredProds=activeBilanFilter==='Tous'
+    ?state.produits
+    :state.produits.filter(p=>(p.fournisseurs||[p.fournisseur||'Autres']).includes(activeBilanFilter));
+  const allSkusBf=[...new Set([
+    ...skus.filter(k=>{const{pid}=skuLabel(k);return filteredProds.some(p=>p.id===pid);}),
+    ...filteredProds.flatMap(p=>p.formats.flatMap(f=>(p.unites||[p.unite]).map(u=>`${p.id}|${f}|${u}`)))
+  ])];
+  const date=new Date().toLocaleDateString('fr');
+  const rows=allSkusBf.map(k=>{
+    const{nom,fmt,unite}=skuLabel(k);
+    const rs=retStandTotal[k]||0;
+    return[nom,fmt,unite,recu[k]||0,D[k]||0,rs,consoReelle[k]||0,RF[k]||0,C[k]||0];
+  });
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+@page{size:A4 landscape;margin:15mm 12mm;}
+body{font-family:Arial,sans-serif;font-size:11px;color:#1a1a1a;}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;border-bottom:2px solid #FF6B2B;padding-bottom:10px;}
+.title{font-size:20px;font-weight:bold;color:#FF6B2B;}
+.subtitle{font-size:13px;color:#555;margin-top:3px;}
+.meta{text-align:right;font-size:11px;color:#555;}
+table{width:100%;border-collapse:collapse;margin-top:8px;}
+th{background:#0F1923;color:#FF6B2B;padding:7px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;}
+td{padding:6px 8px;border-bottom:1px solid #e5e5e5;font-size:11px;}
+tr:nth-child(even) td{background:#f8f8f8;}
+.num{text-align:right;font-family:monospace;}
+.badge-g{background:#d4f5e4;color:#0a5c30;padding:2px 7px;border-radius:4px;font-weight:bold;}
+.badge-r{background:#fde8ec;color:#8b0000;padding:2px 7px;border-radius:4px;font-weight:bold;}
+.badge-b{background:#ddeeff;color:#003366;padding:2px 7px;border-radius:4px;font-weight:bold;}
+.footer{margin-top:16px;font-size:10px;color:#aaa;text-align:center;}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="title">🎪 FESTIlog — Bon de livraison</div>
+    <div class="subtitle">Fournisseur : <strong>${fournisseur}</strong></div>
+  </div>
+  <div class="meta">
+    Date d'impression : <strong>${date}</strong><br>
+    Références : <strong>${allSkusBf.length}</strong>
+  </div>
+</div>
+<table>
+  <thead><tr>
+    <th>Référence</th><th>Format</th><th>Unité</th>
+    <th class="num">Livré site</th><th class="num">Distribué</th>
+    <th class="num">Ret. stands</th><th class="num">Conso. réelle</th>
+    <th class="num">Ret. fourn.</th><th class="num">Solde</th>
+  </tr></thead>
+  <tbody>
+    ${rows.map(r=>`<tr>
+      <td><strong>${r[0]}</strong></td>
+      <td>${r[1]||'—'}</td>
+      <td>${r[2]}</td>
+      <td class="num">${r[3]}</td>
+      <td class="num">${r[4]}</td>
+      <td class="num">${r[5]}</td>
+      <td class="num"><span class="badge-g">${r[6]}</span></td>
+      <td class="num"><span class="badge-r">${r[7]}</span></td>
+      <td class="num"><span class="badge-b">${r[8]}</span></td>
+    </tr>`).join('')}
+  </tbody>
+</table>
+<div class="footer">Document généré par FESTIlog — LNDE 2026</div>
+</body></html>`;
+
+  // Ouvrir dans une nouvelle fenêtre et déclencher l'impression/PDF
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(),600);
+}
+
+function ajouterUnite(){
+  const v=document.getElementById('nu-val').value.trim();
+  if(!v)return;
+  if(!state.unites)state.unites=[...UNITES_DEF];
+  if(getUnites().includes(v)){notif('Existe déjà','error');return;}
+  state.unites.push(v);
+  document.getElementById('nu-val').value='';
+  save();renderCfg();notif(`Unité "${v}" ajoutée`);
+}
+function delUnite(u){
+  if(!confirm(`Supprimer l'unité "${u}" ?`))return;
+  if(!state.unites)state.unites=[...UNITES_DEF];
+  state.unites=state.unites.filter(x=>x!==u);
+  save();renderCfg();
+}
+function ajouterFormat(){const v=document.getElementById('nf-val').value.trim();if(!v)return;if(state.formats.includes(v)){notif('Existe déjà','error');return;}state.formats.push(v);document.getElementById('nf-val').value='';save();renderCfg();populateSels();notif(`"${v}" ajouté`);}
+function delFmt(f){if(!confirm(`Supprimer "${f}" ?`))return;state.formats=state.formats.filter(x=>x!==f);state.produits.forEach(p=>{p.formats=p.formats.filter(x=>x!==f);if(!p.formats.length)p.formats=[state.formats[0]||'—'];});save();renderCfg();populateSels();}
+function ajouterProduit(){
+  const nom=document.getElementById('np-nom').value.trim();
+  const checkedFmts=[...document.querySelectorAll('#np-fmts input:checked')].map(x=>x.value);
+  const checkedUnites=[...document.querySelectorAll('#np-unites input:checked')].map(x=>x.value);
+  const checkedFourns=[...document.querySelectorAll('#np-fournisseurs input:checked')].map(x=>x.value);
+  if(!nom){notif('Entrez un nom','error');return;}
+  const formats=checkedFmts.length?checkedFmts:[state.formats[0]||'—'];
+  const unites=checkedUnites.length?checkedUnites:[getUnites()[0]||'unité'];
+  const fournisseurs=checkedFourns.length?checkedFourns:['Autres'];
+  const unite=unites[0];
+  state.produits.push({id:uid(),nom,formats,unite,unites,fournisseurs});
+  document.getElementById('np-nom').value='';
+  document.querySelectorAll('#np-fmts input, #np-unites input, #np-fournisseurs input').forEach(x=>x.checked=false);
+  save();renderAll();notif(`"${nom}" ajouté`);
+}
+// État JS de la modale édition — évite tout problème de lecture DOM
+let _ep={id:'',nom:'',formats:[],unites:[],fournisseurs:[]};
+
+function editProd(id){
+  const p=state.produits.find(x=>x.id===id);if(!p)return;
+  _ep={
+    id:p.id, nom:p.nom,
+    formats:[...(p.formats||[])],
+    unites:[...(p.unites||(p.unite?[p.unite]:[]))],
+    fournisseurs:[...(p.fournisseurs||(p.fournisseur?[p.fournisseur]:[]))]
+  };
+  document.getElementById('ep-nom').value=_ep.nom;
+  _renderEP();
+  document.getElementById('edit-prod-modal').style.display='flex';
+}
+
+function _renderEP(){
+  const mk=(arr,field,all,col)=>all.map(v=>{
+    const on=arr.includes(v);
+    return `<label data-action="_toggleEP" data-field="${field}" data-val="${v}" style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid ${on?col:'var(--border)'};background:${on?col+'22':'transparent'};user-select:none">
+      <span style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${on?col:'#555'};background:${on?col:'transparent'};display:inline-block;flex-shrink:0"></span>${v}</label>`;
+  }).join('');
+  document.getElementById('ep-fmts').innerHTML=mk(_ep.formats,'formats',state.formats,'var(--orange)');
+  document.getElementById('ep-unites').innerHTML=mk(_ep.unites,'unites',getUnites(),'var(--blue)');
+  document.getElementById('ep-fournisseurs').innerHTML=mk(_ep.fournisseurs,'fournisseurs',state.fournisseurs||[],'var(--green)');
+}
+
+function _toggleEP(field,val){
+  const arr=_ep[field];
+  const i=arr.indexOf(val);
+  if(i>=0)arr.splice(i,1);else arr.push(val);
+  _renderEP();
+}
+
+function closeEditProd(){document.getElementById('edit-prod-modal').style.display='none';}
+
+function saveEditProd(){
+  const p=state.produits.find(x=>x.id===_ep.id);
+  if(!p){notif('Produit introuvable','error');return;}
+  const nom=document.getElementById('ep-nom').value.trim();
+  if(nom)p.nom=nom;
+  p.formats=JSON.parse(JSON.stringify(_ep.formats.length?_ep.formats:p.formats));
+  p.unites=JSON.parse(JSON.stringify(_ep.unites.length?_ep.unites:p.unites));
+  p.unite=p.unites[0]||p.unite;
+  p.fournisseurs=JSON.parse(JSON.stringify(_ep.fournisseurs.length?_ep.fournisseurs:p.fournisseurs));
+  document.getElementById('edit-prod-modal').style.display='none';
+  save();
+  renderAll();
+  notif('✓ '+p.nom+' — '+p.unites.join(' + '));
+}
+async function deleteMouvement(id){
+  askPassword(async()=>{
+    const idx=state.mouvements.findIndex(m=>m.id===id);
+    if(idx===-1){notif('Mouvement introuvable','error');return;}
+    const m=state.mouvements[idx];
+    state.mouvements.splice(idx,1);
+    pushedIds.delete(id);savePushedIds();
+    save();renderAll();
+    notif('✓ Mouvement supprimé');
+    // Supprimer aussi dans Google Sheets
+    if(syncCfg.url){
+      try{
+        await fetch(syncCfg.url,{method:'POST',body:JSON.stringify({action:'deleteMouvement',mouvementId:id,heure:m.heure,date:m.date||''}),headers:{'Content-Type':'text/plain'}});
+        logSync('🗑 Mouvement supprimé dans le Sheet');
+      }catch(e){logSync('⚠ Suppression Sheet échouée : '+e.message);}
+    }
+  });
+}
+// ══════════ GLOBAL EVENT DELEGATION ══════════
+// Évite tout problème d'apostrophe/guillemet dans les onclick dynamiques
+document.addEventListener('click', function(e){
+  const el=e.target.closest('[data-action]');
+  if(!el)return;
+  const action=el.dataset.action;
+  const val=el.dataset.val;
+  const field=el.dataset.field;
+  if(action==='delFournisseur'){
+    if(!confirm(`Supprimer "${val}" ?`))return;
+    state.fournisseurs=(state.fournisseurs||[]).filter(x=>x!==val);
+    save();renderCfg();renderDash();
+  } else if(action==='setBilanFilter'){
+    activeBilanFilter=val;renderDash();
+  } else if(action==='delFmt'){
+    if(!state.formats.includes(val))return;
+    state.formats=state.formats.filter(x=>x!==val);
+    save();renderCfg();populateSels();
+  } else if(action==='delUnite'){
+    if(!state.unites)state.unites=[...UNITES_DEF];
+    state.unites=state.unites.filter(x=>x!==val);
+    save();renderCfg();
+  } else if(action==='_toggleEP'){
+    _toggleEP(field,val);
+  }
+});
+
+function delFournisseur(f){
+  // Garde pour compatibilité — normalement géré par event delegation
+  if(!confirm(`Supprimer "${f}" ?`))return;
+  state.fournisseurs=(state.fournisseurs||[]).filter(x=>x!==f);
+  save();renderCfg();renderDash();
+}
+function delFmt(f){state.formats=state.formats.filter(x=>x!==f);save();renderCfg();populateSels();}
+function delUnite(u){if(!state.unites)state.unites=[...UNITES_DEF];state.unites=state.unites.filter(x=>x!==u);save();renderCfg();}
+function setBilanFilter(f){activeBilanFilter=f;renderDash();}
+function ajouterStand(){const n=document.getElementById('ns-nom').value.trim();if(!n)return;state.stands.push({id:uid(),nom:n});document.getElementById('ns-nom').value='';save();renderAll();}
+function renameStand(id){const s=state.stands.find(x=>x.id===id);if(!s)return;const n=prompt('Nouveau nom :',s.nom);if(n&&n.trim())s.nom=n.trim();save();renderAll();}
+function delStand(id){if(!confirm('Supprimer ?'))return;state.stands=state.stands.filter(s=>s.id!==id);save();renderAll();}
+function askPassword(callback){
+  const modal=document.getElementById('pwd-modal');
+  document.getElementById('pwd-input').value='';
+  document.getElementById('pwd-error').style.display='none';
+  document.getElementById('pwd-expected').value='olivier';
+  modal.style.display='flex';
+  document.getElementById('pwd-input').focus();
+  document.getElementById('pwd-ok').onclick=()=>{
+    const expected=document.getElementById('pwd-expected').value;
+    if(document.getElementById('pwd-input').value===expected){
+      modal.style.display='none';callback();
+    } else {
+      document.getElementById('pwd-error').style.display='block';
+      document.getElementById('pwd-input').value='';
+      document.getElementById('pwd-input').focus();
+    }
+  };
+  document.getElementById('pwd-cancel').onclick=()=>{modal.style.display='none';};
+  document.getElementById('pwd-input').onkeydown=(e)=>{if(e.key==='Enter')document.getElementById('pwd-ok').click();if(e.key==='Escape')modal.style.display='none';};
+}
+
+function askPassword2(pwd, callback){
+  const modal=document.getElementById('pwd-modal');
+  document.getElementById('pwd-input').value='';
+  document.getElementById('pwd-error').style.display='none';
+  document.getElementById('pwd-expected').value=pwd;
+  modal.style.display='flex';
+  document.getElementById('pwd-input').focus();
+  document.getElementById('pwd-ok').onclick=()=>{
+    if(document.getElementById('pwd-input').value===pwd){
+      modal.style.display='none';callback();
+    } else {
+      document.getElementById('pwd-error').style.display='block';
+      document.getElementById('pwd-input').value='';
+      document.getElementById('pwd-input').focus();
+    }
+  };
+  document.getElementById('pwd-cancel').onclick=()=>{modal.style.display='none';};
+  document.getElementById('pwd-input').onkeydown=(e)=>{if(e.key==='Enter')document.getElementById('pwd-ok').click();if(e.key==='Escape')modal.style.display='none';};
+}
+
+async function resetSheet(){
+  if(!syncCfg.url){notif('Configurez la connexion','error');return;}
+  askPassword2('lesage',async()=>{
+    logSync('🗑 Réinitialisation du Sheet…');
+    try{
+      const r=await fetch(syncCfg.url,{method:'POST',body:JSON.stringify({action:'resetSheet'}),headers:{'Content-Type':'text/plain'}});
+      const txt=await r.text();
+      let d;try{d=JSON.parse(txt);}catch(ex){throw new Error('Non-JSON : '+txt.slice(0,80));}
+      if(d.ok){notif('✓ Sheet réinitialisé','success');logSync('✓ Sheet vidé (toutes feuilles)');}
+      else throw new Error(d.error||'Erreur serveur');
+    }catch(e){notif('Erreur','error');logSync('✗ Reset Sheet : '+e.message);}
+  });
+}
+
+function resetCfg(){askPassword(()=>{const d=JSON.parse(JSON.stringify(DEF));state.formats=d.formats;state.produits=d.produits;state.stands=d.stands;save();renderAll();notif('Config réinitialisée');});}
+function resetAll(){askPassword(()=>{state=JSON.parse(JSON.stringify(DEF));save();renderAll();notif('Tout effacé');});}
+
+// ══════════════════════════ EXPORT ══════════════════════════
+
+function printTablePDF(title, tableId){
+  const tableEl=document.getElementById(tableId);
+  if(!tableEl){notif('Tableau introuvable','error');return;}
+  const date=new Date().toLocaleDateString('fr');
+  // Clone table and clean up badges/colors for print
+  const clone=tableEl.cloneNode(true);
+  // Convert badge spans to plain text with brackets
+  clone.querySelectorAll('.badge').forEach(el=>{
+    const t=document.createTextNode(el.textContent);
+    el.replaceWith(t);
+  });
+  clone.querySelectorAll('.progress-wrap').forEach(el=>el.remove());
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+@page{size:A4 landscape;margin:12mm 10mm;}
+*{box-sizing:border-box;}
+body{font-family:Arial,sans-serif;font-size:10px;color:#000;background:#fff;margin:0;}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #FF6B2B;}
+.title{font-size:16px;font-weight:bold;color:#FF6B2B;}
+.meta{font-size:10px;color:#555;text-align:right;}
+table{width:100%;border-collapse:collapse;}
+th{background:#f0f0f0;color:#000;padding:5px 7px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid #ccc;font-weight:bold;}
+td{padding:5px 7px;border:1px solid #ddd;font-size:10px;color:#000;}
+tr:nth-child(even) td{background:#f9f9f9;}
+strong{font-weight:bold;}
+.footer{margin-top:10px;font-size:9px;color:#999;text-align:center;}
+</style></head><body>
+<div class="header">
+  <div class="title">🎪 FESTIlog — ${title}</div>
+  <div class="meta">LNDE 2026 &nbsp;|&nbsp; ${date}</div>
+</div>
+${clone.outerHTML}
+<div class="footer">Document généré par FESTIlog — LNDE 2026</div>
+</body></html>`;
+
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(),500);
+}
+
+function exportSheet(id){
+  const{C,CDERVAL,CBASELOG,D,RF,PS,skus,retStandTotal,consoReelle}=calc();
+  const recu=totalRecu();
+  const wb=XLSX.utils.book_new();
+  const date=new Date().toISOString().slice(0,10);
+
+  if(id==='stock-central'){
+    const rows=[['Référence','Format','Unité','Reçu','Stock central','Distribué','Ret. central','Conso. réelle','Ret. fournisseur']];
+    skus.forEach(k=>{const{nom,fmt,unite}=skuLabel(k);rows.push([nom,fmt,unite,recu[k]||0,C[k]||0,D[k]||0,retStandTotal[k]||0,consoReelle[k]||0,RF[k]||0]);});
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Stock Central');
+    XLSX.writeFile(wb,`stock_central_${date}.xlsx`);
+  }
+  else if(id==='conso-stand'){
+    const rows=[['Stand','Reçu','Ret. central','Trf. sortant','Conso. réelle']];
+    state.stands.forEach(s=>{
+      const allSkus=Object.keys(PS[s.id]||{});
+      const e=allSkus.reduce((a,k)=>a+(PS[s.id][k]?.e||0),0);
+      const r=allSkus.reduce((a,k)=>a+(PS[s.id][k]?.r||0),0);
+      const trf=allSkus.reduce((a,k)=>a+(PS[s.id][k]?.trf_out||0),0);
+      rows.push([s.nom,e,r,trf,e-r-trf]);
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Conso par Stand');
+    XLSX.writeFile(wb,`conso_stand_${date}.xlsx`);
+  }
+  else if(id==='matrix'){
+    const rows=[['Référence','Format','Unité',...state.stands.map(s=>s.nom),'TOTAL']];
+    skus.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const tots=state.stands.map(s=>{const d=PS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+      rows.push([nom,fmt,unite,...tots,tots.reduce((a,b)=>a+b,0)]);
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Matrice');
+    XLSX.writeFile(wb,`matrice_stands_${date}.xlsx`);
+  }
+  else if(id==='bilan-fourn'){
+    const rows=[['Référence','Format','Unité','Livré','Distribué','Ret. stands','Conso. réelle','Ret. fournisseur','Solde']];
+    skus.forEach(k=>{const{nom,fmt,unite}=skuLabel(k);rows.push([nom,fmt,unite,recu[k]||0,D[k]||0,retStandTotal[k]||0,consoReelle[k]||0,RF[k]||0,C[k]||0]);});
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Bilan Fournisseur');
+    XLSX.writeFile(wb,`bilan_fournisseur_${date}.xlsx`);
+  }
+  else if(id==='stand-dash'){
+    const standNom=activeDashStand==='all'?'Tous_les_stands':(state.stands.find(s=>s.id===activeDashStand)?.nom||'');
+    if(activeDashStand==='all'){
+      const rows=[['Référence','Format','Unité',...state.stands.map(s=>s.nom),'TOTAL']];
+      skus.forEach(k=>{
+        const{nom,fmt,unite}=skuLabel(k);
+        const tots=state.stands.map(s=>{const d=PS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+        rows.push([nom,fmt,unite,...tots,tots.reduce((a,b)=>a+b,0)]);
+      });
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Conso Réelle');
+    } else {
+      const rows=[['Référence','Format','Unité','Reçu','Ret. Central','Trf. sortant','Conso. réelle']];
+      skus.forEach(k=>{const{nom,fmt,unite}=skuLabel(k);const d=PS[activeDashStand][k]||{e:0,r:0,trf_out:0};if(d.e||d.r||d.trf_out)rows.push([nom,fmt,unite,d.e,d.r,d.trf_out,d.e-d.r-d.trf_out]);});
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),standNom.slice(0,30));
+    }
+    XLSX.writeFile(wb,`conso_${standNom.replace(/ /g,'_')}_${date}.xlsx`);
+  }
+  else if(id==='stock-derval'||id==='stock-baselog'||id==='stock-total'){
+    const stockObj=id==='stock-derval'?CDERVAL:id==='stock-baselog'?CBASELOG:C;
+    const nom=id==='stock-derval'?'DERVAL':id==='stock-baselog'?'BASE_LOG':'Total';
+    const rows=[['Référence','Format','Unité','Stock actuel']];
+    skus.forEach(k=>{const{nom:n,fmt,unite}=skuLabel(k);rows.push([n,fmt,unite,stockObj[k]||0]);});
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),`Stock ${nom}`);
+    XLSX.writeFile(wb,`stock_${nom}_${date}.xlsx`);
+  }
+  else if(id==='historique'){
+    const LBL={reception:'RÉC. CENTRAL',reception_stand:'RÉC. STAND',distribution:'DISTRIB.',transfert:'TRANSFERT',retour_stand:'RET. STAND',retour_fournisseurs:['RET. FOURN.']};
+    const rows=[['Date','Heure','Type','Référence','Format','Unité','Source','Destination','Quantité','Note']];
+    [...state.mouvements].reverse().forEach(m=>{
+      const p=state.produits.find(x=>x.id===m.pid);
+      const sta=state.stands.find(x=>x.id===m.sid),sf=state.stands.find(x=>x.id===m.sidFrom),st=state.stands.find(x=>x.id===m.sidTo);
+      let src='—',dst='—';
+      if(m.type==='reception')             {src='Fournisseur';dst='Central BASE LOG';}
+      else if(m.type==='reception_stand')  {src='Fournisseur';dst=sta?.nom||'?';}
+      else if(m.type==='distribution')     {src='Central BASE LOG';dst=sta?.nom||'?';}
+      else if(m.type==='transfert')        {src=sf?.nom||'?';dst=st?.nom||'?';}
+      else if(m.type==='retour_stand')     {src=sta?.nom||'?';dst='Central BASE LOG';}
+      else if(m.type==='retour_fournisseur'){src='Central BASE LOG';dst='Fournisseur';}
+      rows.push([m.date||'',m.heure,LBL[m.type]||m.type,p?.nom||'?',m.fmt||'',m.unite||'',src,dst,m.qty,m.note||'']);
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Historique');
+    XLSX.writeFile(wb,`historique_${date}.xlsx`);
+  }
+  notif('📊 Export téléchargé');
+}
+
+function exportExcel(){
+  const{C,CDERVAL,CBASELOG,D,RF,PS,skus,retStandTotal,consoReelle}=calc();
+  const recu=totalRecu();
+  const wb=XLSX.utils.book_new();
+  const date=new Date().toISOString().slice(0,10);
+
+  // 1. Stock central
+  const sc=[['Référence','Format','Unité','Reçu','Stock central','Distribué','Ret. central','Conso. réelle','Ret. fournisseur']];
+  skus.forEach(k=>{const{nom,fmt,unite}=skuLabel(k);sc.push([nom,fmt,unite,recu[k]||0,C[k]||0,D[k]||0,retStandTotal[k]||0,consoReelle[k]||0,RF[k]||0]);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sc),'Tableau de bord global');
+
+  // 2. Matrice conso réelle
+  const mx=[['Référence','Format','Unité',...state.stands.map(s=>s.nom),'TOTAL']];
+  skus.forEach(k=>{
+    const{nom,fmt,unite}=skuLabel(k);
+    const tots=state.stands.map(s=>{const d=PS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+    mx.push([nom,fmt,unite,...tots,tots.reduce((a,b)=>a+b,0)]);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(mx),'Conso par Stand');
+
+  // 3. Détail par stand
+  const ds=[['Stand','Référence','Format','Unité','Reçu','Ret. central','Trf. sortant','Conso. réelle']];
+  state.stands.forEach(s=>{
+    skus.forEach(k=>{
+      const d=PS[s.id][k]||{e:0,r:0,trf_out:0};
+      if(d.e||d.r||d.trf_out){const{nom,fmt,unite}=skuLabel(k);ds.push([s.nom,nom,fmt,unite,d.e,d.r,d.trf_out,d.e-d.r-d.trf_out]);}
+    });
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ds),'Détail par Stand');
+
+  // 4. Stocks centraux
+  const stk=[['Référence','Format','Unité','Stock DERVAL','Stock BASE LOG','Stock total']];
+  skus.forEach(k=>{const{nom,fmt,unite}=skuLabel(k);stk.push([nom,fmt,unite,CDERVAL[k]||0,CBASELOG[k]||0,C[k]||0]);});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(stk),'Stocks Centraux');
+
+  // 5. Historique
+  const LBL={reception:'RÉC. CENTRAL',reception_stand:'RÉC. STAND',distribution:'DISTRIB.',transfert:'TRANSFERT',retour_stand:'RET. STAND',retour_fournisseurs:['RET. FOURN.']};
+  const mv=[['Date','Heure','Type','Référence','Format','Unité','Source','Destination','Quantité','Note']];
+  [...state.mouvements].reverse().forEach(m=>{
+    const p=state.produits.find(x=>x.id===m.pid);
+    const sta=state.stands.find(x=>x.id===m.sid),sf=state.stands.find(x=>x.id===m.sidFrom),st=state.stands.find(x=>x.id===m.sidTo);
+    let src='—',dst='—';
+    if(m.type==='reception')             {src='Fournisseur';dst='Central BASE LOG';}
+    else if(m.type==='reception_stand')  {src='Fournisseur';dst=sta?.nom||'?';}
+    else if(m.type==='distribution')     {src='Central BASE LOG';dst=sta?.nom||'?';}
+    else if(m.type==='transfert')        {src=sf?.nom||'?';dst=st?.nom||'?';}
+    else if(m.type==='retour_stand')     {src=sta?.nom||'?';dst='Central BASE LOG';}
+    else if(m.type==='retour_fournisseur'){src='Central BASE LOG';dst='Fournisseur';}
+    mv.push([m.date||'',m.heure,LBL[m.type]||m.type,p?.nom||'?',m.fmt||'',m.unite||'',src,dst,m.qty,m.note||'']);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(mv),'Historique');
+
+  XLSX.writeFile(wb,`festilog_complet_${date}.xlsx`);
+  notif('📊 Export complet téléchargé');
+}
+function today(){const d=new Date();return[String(d.getDate()).padStart(2,'0'),String(d.getMonth()+1).padStart(2,'0'),String(d.getFullYear()).slice(2)].join('/');}
+
+function logSync(msg){
+  const el=document.getElementById('sync-log');
+  if(!el)return;
+  el.innerHTML=`<div>[${now()}] ${msg}</div>`+el.innerHTML;
+  if(el.children.length>50)el.lastChild.remove();
+}
+
+let _nt;
+function notif(msg,type='success'){
+  const el=document.getElementById('notif');
+  el.textContent=msg;el.className='show '+type;
+  clearTimeout(_nt);_nt=setTimeout(()=>el.className='',3000);
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){return String(s).replace(/'/g,"&#39;").replace(/"/g,'&quot;');}
+function now(){return[new Date().getHours(),new Date().getMinutes(),new Date().getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');}
+function today(){const d=new Date();return[String(d.getDate()).padStart(2,'0'),String(d.getMonth()+1).padStart(2,'0'),String(d.getFullYear()).slice(2)].join('/');}
+
+// ══════════════════════════ UI UTILS ══════════════════════════
+const TABS=['dashboard','dash-stand','stocks','rec-derval','reception','rec-stand','distribution','dist-derval','transfert','retours','retours-fourn','historique','config','sync'];
+function switchTab(name){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+name)?.classList.add('active');
+  const idx=TABS.indexOf(name);
+  if(idx>=0){
+    const tabEl=document.querySelectorAll('.tab')[idx];
+    tabEl?.classList.add('active');
+    tabEl?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  }
+  if(name==='sync')renderSyncTab();
+  if(name==='dash-stand')renderDashStand();
+}
+
+function copyScript(){
+  const el=document.getElementById('script-code');
+  el.style.display='block';
+  navigator.clipboard.writeText(el.textContent.trim())
+    .then(()=>notif('✓ Code copié !','success'))
+    .catch(()=>notif('Sélectionnez le code manuellement','error'));
+}
+
+renderAll();
+// Nettoyage des anciennes clés localStorage
+['fsv4','fsv5','fsv6','fsv7','fsv8','fsv4_sync','fsv5_sync','fsv6_sync','fsv7_sync','fsv8_sync','fsv4_queue','fsv5_queue','fsv6_queue','fsv7_queue','fsv8_queue','feststock_v2','feststock_v3'].forEach(k=>localStorage.removeItem(k));
+// Restaurer auto-pull si activé
+if(syncCfg.autoPull&&syncCfg.url){autoPullTimer=setInterval(()=>pullMouvements(true),30000);}
+</script>
+</body>
+</html>
