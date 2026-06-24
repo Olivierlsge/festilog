@@ -208,7 +208,7 @@ pre{background:var(--bg);border:1px solid var(--border);border-radius:8px;paddin
 
 <!-- HEADER -->
 <header>
-  <div class="logo">FESTI<span>log</span> <small style="font-size:9px;opacity:.5;font-weight:400">v74</small></div>
+  <div class="logo">FESTI<span>log</span> <small style="font-size:9px;opacity:.5;font-weight:400">v76</small></div>
   <div class="header-right">
     <div id="sync-pill" class="sync-pill disconnected" onclick="switchTab('sync')" title="Synchronisation">
       <div class="sync-dot" id="sync-dot"></div>
@@ -1835,16 +1835,16 @@ const DEF={
   ],
   "mouvements": []
 };
-let state=(()=>{try{const s=localStorage.getItem('fsv74');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEF));}catch(e){return JSON.parse(JSON.stringify(DEF));}})();
-function save(){try{localStorage.setItem('fsv74',JSON.stringify(state));}catch(e){}}
+let state=(()=>{try{const s=localStorage.getItem('fsv76');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEF));}catch(e){return JSON.parse(JSON.stringify(DEF));}})();
+function save(){try{localStorage.setItem('fsv76',JSON.stringify(state));}catch(e){}}
 
-let syncCfg=(()=>{try{return JSON.parse(localStorage.getItem('fsv74_sync'))||{url:'',device:'',autoSend:false,autoPull:false};}catch(e){return{url:'',device:'',autoSend:false,autoPull:false};}})();
-function saveSyncCfg(){localStorage.setItem('fsv74_sync',JSON.stringify(syncCfg));}
-let sendQueue=(()=>{try{return JSON.parse(localStorage.getItem('fsv74_queue'))||[];}catch(e){return[];}})();
-function saveQueue(){localStorage.setItem('fsv74_queue',JSON.stringify(sendQueue));}
+let syncCfg=(()=>{try{return JSON.parse(localStorage.getItem('fsv76_sync'))||{url:'',device:'',autoSend:false,autoPull:false};}catch(e){return{url:'',device:'',autoSend:false,autoPull:false};}})();
+function saveSyncCfg(){localStorage.setItem('fsv76_sync',JSON.stringify(syncCfg));}
+let sendQueue=(()=>{try{return JSON.parse(localStorage.getItem('fsv76_queue'))||[];}catch(e){return[];}})();
+function saveQueue(){localStorage.setItem('fsv76_queue',JSON.stringify(sendQueue));}
 // IDs des mouvements qu'on a nous-même envoyés ou déjà vus — pour ne jamais les réimporter
-let pushedIds=(()=>{try{return new Set(JSON.parse(localStorage.getItem('fsv74_pushed'))||[]);}catch(e){return new Set();}})();
-function savePushedIds(){try{localStorage.setItem('fsv74_pushed',JSON.stringify([...pushedIds]));}catch(e){}}
+let pushedIds=(()=>{try{return new Set(JSON.parse(localStorage.getItem('fsv76_pushed'))||[]);}catch(e){return new Set();}})();
+function savePushedIds(){try{localStorage.setItem('fsv76_pushed',JSON.stringify([...pushedIds]));}catch(e){}}
 let autoPullTimer=null,syncState='idle';
 
 // ══════════════════════════ CALC ══════════════════════════
@@ -1975,7 +1975,7 @@ function applyFilter(pfx,catKey){
 }
 
 // ══════════════════════════ SELECTS ══════════════════════════
-const UNITES_DEF=['pack','bouteille','canette','bib','fût','cuve','sachet','unité'];
+const UNITES_DEF=['pack','bouteille','canette','bib','fût','cuve','sachet','unité','caisse'];
 function getUnites(){return state.unites&&state.unites.length?state.unites:UNITES_DEF;}
 function populateSels(){
   const so=state.stands.map(s=>`<option value="${s.id}">${s.nom}</option>`).join('');
@@ -2453,6 +2453,7 @@ function renderCfg(){
         </div>
       </div>`).join('');
   }
+  const fournisseursEl=document.getElementById('fournisseurs-config');
   if(fournisseursEl){
     const fList=state.fournisseurs||[];
     fournisseursEl.innerHTML=fList.length
