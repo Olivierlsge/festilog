@@ -2379,10 +2379,10 @@ function renderHist(){
     const st2=state.stands.find(x=>x.id===m.sidTo);
     const sta=state.stands.find(x=>x.id===m.sid);
     const fourn=m.fournisseur||'—';
-    // Fallback sur les noms texte stockés au pull si l'ID ne résout pas
-    const staNom=sta?.nom||(m.standDstNom&&m.type!=='transfert'?m.standDstNom:m.standSrcNom)||'?';
-    const sf2Nom=sf2?.nom||m.standSrcNom||'?';
-    const st2Nom=st2?.nom||m.standDstNom||'?';
+    // Résoudre le nom du stand — fallback sur les champs texte stockés au pull
+    const staNom=sta?.nom||m.standDstNom||m.standSrcNom||'—';
+    const sf2Nom=sf2?.nom||m.standSrcNom||'—';
+    const st2Nom=st2?.nom||m.standDstNom||'—';
     let src='—', dst='—';
     if(m.type==='reception')            { src=fourn; dst=m.centrale==='BASELOG'?'Central BASE LOG':'Central DERVAL'; }
     else if(m.type==='reception_stand') { src=fourn; dst=staNom; }
