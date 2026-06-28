@@ -2379,12 +2379,16 @@ function renderHist(){
     const st2=state.stands.find(x=>x.id===m.sidTo);
     const sta=state.stands.find(x=>x.id===m.sid);
     const fourn=m.fournisseur||'—';
+    // Fallback sur les noms texte stockés au pull si l'ID ne résout pas
+    const staNom=sta?.nom||(m.standDstNom&&m.type!=='transfert'?m.standDstNom:m.standSrcNom)||'?';
+    const sf2Nom=sf2?.nom||m.standSrcNom||'?';
+    const st2Nom=st2?.nom||m.standDstNom||'?';
     let src='—', dst='—';
     if(m.type==='reception')            { src=fourn; dst=m.centrale==='BASELOG'?'Central BASE LOG':'Central DERVAL'; }
-    else if(m.type==='reception_stand') { src=fourn; dst=sta?.nom||'?'; }
-    else if(m.type==='distribution')    { src=m.centrale==='DERVAL'?'Central DERVAL':'Central BASE LOG'; dst=sta?.nom||'?'; }
-    else if(m.type==='transfert')       { src=sf2?.nom||'?'; dst=st2?.nom||'?'; }
-    else if(m.type==='retour_stand')    { src=sta?.nom||'?'; dst='Central BASE LOG'; }
+    else if(m.type==='reception_stand') { src=fourn; dst=staNom; }
+    else if(m.type==='distribution')    { src=m.centrale==='DERVAL'?'Central DERVAL':'Central BASE LOG'; dst=staNom; }
+    else if(m.type==='transfert')       { src=sf2Nom; dst=st2Nom; }
+    else if(m.type==='retour_stand')    { src=staNom; dst='Central BASE LOG'; }
     else if(m.type==='retour_fournisseur'){ src='Central BASE LOG'; dst=fourn; }
     const[bc,bl]=LBL[m.type]||['badge-blue',m.type];
     h+=`<tr>
@@ -2656,6 +2660,7 @@ async function pullMouvements(silent=false){
         id:stableId,date,heure,type,
         pid:p?p.id:ref,
         sid,sidFrom,sidTo,
+        standSrcNom:standSrc,standDstNom:standDst,
         fmt,qty:qtyNum,
         unite,note,fournisseur,appareil,
         centrale:centraleVal
