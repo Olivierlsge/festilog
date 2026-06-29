@@ -2708,8 +2708,16 @@ async function flushQueue(){
   if(!sendQueue.length){notif('File vide','info');return;}
   logSync(`↑ Envoi file (${sendQueue.length} mouvement(s))…`);
   const toSend=[...sendQueue];sendQueue=[];saveQueue();updatePendingBadge();
-  let ok=0,fail=0;
+  let ok=0,fail=0,skipped=0;
+  // IDs des mouvements encore présents localement
+  const localIds=new Set(state.mouvements.map(m=>m.id));
   for(const m of toSend){
+    // Ignorer si le mouvement a été supprimé localement
+    if(!localIds.has(m.id)){
+      skipped++;
+      logSync(`⏭ Ignoré (supprimé) : ${m.type} ${m.pid}`);
+      continue;
+    }
     try{
       const p=state.produits.find(x=>x.id===m.pid),s=state.stands.find(x=>x.id===m.sid),sf=state.stands.find(x=>x.id===m.sidFrom),st=state.stands.find(x=>x.id===m.sidTo);
       const payload={action:'addMouvement',mouvement:{id:m.id,date:m.date||'',heure:m.heure,type:m.type,ref:p?p.nom:m.pid,unite:m.unite,fmt:m.fmt||'',standSrc:sf?sf.nom:(s?s.nom:''),standDst:st?st.nom:'',fournisseur:m.fournisseur||'',centrale:m.centrale||'',qty:m.qty,note:m.note||'',appareil:syncCfg.device||'?'}};
@@ -2723,9 +2731,9 @@ async function flushQueue(){
     }
   }
   updatePendingBadge();renderSyncTab();
-  if(fail===0)notif(`✓ ${ok} mouvement(s) envoyé(s)`,'success');
-  else notif(`${ok} envoyé(s), ${fail} échoué(s)`,'error');
-  logSync(`File : ${ok} ✓ ${fail} ✗`);
+  if(fail===0)notif(`✓ ${ok} envoyé(s)${skipped?' ('+skipped+' ignoré(s))':''}`,'success');
+  else notif(`${ok} envoyé(s), ${fail} échoué(s)${skipped?', '+skipped+' ignoré(s)':''}`,'error');
+  logSync(`File : ${ok} ✓ ${fail} ✗ ${skipped} ignoré(s)`);
   if(ok>0) pushSnapshots().catch(e=>logSync('⚠ Snapshot : '+e.message));
 }
 
