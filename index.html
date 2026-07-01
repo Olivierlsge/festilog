@@ -277,23 +277,48 @@ pre{background:var(--bg);border:1px solid var(--border);border-radius:8px;paddin
 
 <!-- ══════════ STOCKS CENTRAUX ══════════ -->
 <div id="tab-stocks" class="tab-content">
-  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(320px,1fr));gap:14px;min-width:960px;">
-      <div class="card" style="border-left:3px solid var(--orange)">
-        <div class="card-title" style="color:var(--orange);font-size:13px">🏭 CENTRAL DERVAL <button class="btn-xls" onclick="exportSheet('stock-derval')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock DERVAL','stock-derval-table')">↓ PDF</button></div>
-        <div id="stock-derval-table"></div>
-      </div>
-      <div class="card" style="border-left:3px solid var(--blue)">
-        <div class="card-title" style="color:var(--blue);font-size:13px">🏭 CENTRAL BASE LOG <button class="btn-xls" onclick="exportSheet('stock-baselog')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock BASE LOG','stock-baselog-table')">↓ PDF</button></div>
-        <div id="stock-baselog-table"></div>
-      </div>
-      <div class="card" style="border-left:3px solid var(--green)">
-        <div class="card-title" style="color:var(--green);font-size:13px">Σ TOTAL COMBINÉS <button class="btn-xls" onclick="exportSheet('stock-total')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock Total Combiné','stock-total-table')">↓ PDF</button></div>
-        <div id="stock-total-table"></div>
+  <!-- Toggle Central / Stands -->
+  <div class="flex mb12" style="gap:8px">
+    <button id="stocks-btn-central" class="btn btn-primary" onclick="setStocksView('central')" style="flex:1">🏭 Central</button>
+    <button id="stocks-btn-stands" class="btn btn-ghost" onclick="setStocksView('stands')" style="flex:1">🏪 Stands</button>
+  </div>
+
+  <!-- VUE CENTRALE -->
+  <div id="stocks-view-central">
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(320px,1fr));gap:14px;min-width:960px;">
+        <div class="card" style="border-left:3px solid var(--orange)">
+          <div class="card-title" style="color:var(--orange);font-size:13px">🏭 CENTRAL DERVAL <button class="btn-xls" onclick="exportSheet('stock-derval')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock DERVAL','stock-derval-table')">↓ PDF</button></div>
+          <div id="stock-derval-table"></div>
+        </div>
+        <div class="card" style="border-left:3px solid var(--blue)">
+          <div class="card-title" style="color:var(--blue);font-size:13px">🏭 CENTRAL BASE LOG <button class="btn-xls" onclick="exportSheet('stock-baselog')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock BASE LOG','stock-baselog-table')">↓ PDF</button></div>
+          <div id="stock-baselog-table"></div>
+        </div>
+        <div class="card" style="border-left:3px solid var(--green)">
+          <div class="card-title" style="color:var(--green);font-size:13px">Σ TOTAL COMBINÉS <button class="btn-xls" onclick="exportSheet('stock-total')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock Total Combiné','stock-total-table')">↓ PDF</button></div>
+          <div id="stock-total-table"></div>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- VUE STANDS -->
+  <div id="stocks-view-stands" style="display:none">
+    <div class="card mb12">
+      <div class="card-title"><span class="card-title-icon">🏪</span>Filtrer par stand</div>
+      <div id="stocks-stand-chips" class="flex flex-wrap" style="gap:8px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="card-title-icon">📦</span>Stock en stands — <span id="stocks-stand-title" style="color:var(--blue)">Tous les stands</span>
+        <button class="btn-xls" onclick="exportSheet('stock-stands-view')">↓ Excel</button>
+        <button class="btn-pdf" onclick="printTablePDF('Stock Stands','stocks-stand-table')">↓ PDF</button>
+      </div>
+      <div class="table-wrap" id="stocks-stand-table"></div>
+    </div>
+  </div>
 </div>
+
 
 <!-- ══════════ RÉCEPTION DERVAL ══════════ -->
 <div id="tab-rec-derval" class="tab-content">
@@ -2235,6 +2260,67 @@ function renderDashStand(){
 }
 function setDashStand(id){activeDashStand=id;renderDashStand();}
 
+let activeStocksView='central';
+let activeStocksStands=new Set(['all']);
+
+function setStocksView(view){
+  activeStocksView=view;
+  document.getElementById('stocks-view-central').style.display=view==='central'?'':'none';
+  document.getElementById('stocks-view-stands').style.display=view==='stands'?'':'none';
+  document.getElementById('stocks-btn-central').className='btn '+(view==='central'?'btn-primary':'btn-ghost');
+  document.getElementById('stocks-btn-stands').className='btn '+(view==='stands'?'btn-primary':'btn-ghost');
+  if(view==='stands')renderStocksStands();
+}
+
+function toggleStocksStand(sid){
+  if(sid==='all'){
+    activeStocksStands=new Set(['all']);
+  } else {
+    activeStocksStands.delete('all');
+    if(activeStocksStands.has(sid))activeStocksStands.delete(sid);
+    else activeStocksStands.add(sid);
+    if(activeStocksStands.size===0)activeStocksStands=new Set(['all']);
+  }
+  renderStocksStands();
+}
+
+function renderStocksStands(){
+  const{PS,skus}=calc();
+  // Chips
+  const chipsEl=document.getElementById('stocks-stand-chips');
+  if(chipsEl){
+    chipsEl.innerHTML=
+      `<button class="chip${activeStocksStands.has('all')?' chip-active':''}" onclick="toggleStocksStand('all')">Tous</button>`+
+      state.stands.map(s=>`<button class="chip${activeStocksStands.has(s.id)?' chip-active':''}" onclick="toggleStocksStand('${s.id}')">${s.nom}</button>`).join('');
+  }
+  // Titre
+  const titleEl=document.getElementById('stocks-stand-title');
+  if(titleEl){
+    if(activeStocksStands.has('all'))titleEl.textContent='Tous les stands';
+    else titleEl.textContent=state.stands.filter(s=>activeStocksStands.has(s.id)).map(s=>s.nom).join(', ');
+  }
+  // Tableau
+  const tableEl=document.getElementById('stocks-stand-table');
+  if(!tableEl)return;
+  const filteredStands=activeStocksStands.has('all')?state.stands:state.stands.filter(s=>activeStocksStands.has(s.id));
+  if(!skus.length){tableEl.innerHTML='<div class="empty-state">Aucun mouvement</div>';return;}
+  let h=`<table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th>`;
+  if(filteredStands.length>1)filteredStands.forEach(s=>h+=`<th style="white-space:nowrap;font-size:10px">${s.nom}</th>`);
+  h+=`<th>Stock chez stand(s)</th></tr></thead><tbody>`;
+  let hasRows=false;
+  skus.forEach(k=>{
+    const{nom,fmt,unite}=skuLabel(k);
+    const vals=filteredStands.map(s=>{const d=PS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+    const total=vals.reduce((a,b)=>a+b,0);
+    if(total===0)return;
+    hasRows=true;
+    h+=`<tr><td><strong>${nom}</strong></td><td><span class="badge badge-purple">${fmt||'—'}</span></td><td class="mono text-muted" style="font-size:11px">${unite}</td>`;
+    if(filteredStands.length>1)vals.forEach(v=>h+=`<td class="mono" style="color:${v>0?'var(--green)':'var(--text-muted)'}">${v||'—'}</td>`);
+    h+=`<td><span class="badge badge-blue">${total}</span></td></tr>`;
+  });
+  tableEl.innerHTML=hasRows?h+'</tbody></table>':'<div class="empty-state">Aucun stock en stand</div>';
+}
+
 function renderStocks(){
   const{CDERVAL,CBASELOG,C,skus}=calc();
   const recu=totalRecu();
@@ -3263,6 +3349,19 @@ function exportSheet(id){
       XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),standNom.slice(0,30));
     }
     XLSX.writeFile(wb,`conso_${standNom.replace(/ /g,'_')}_${date}.xlsx`);
+  }
+  else if(id==='stock-stands-view'){
+    const{PS,skus}=calc();
+    const filteredStands=activeStocksStands.has('all')?state.stands:state.stands.filter(s=>activeStocksStands.has(s.id));
+    const rows=[['Référence','Format','Unité',...filteredStands.map(s=>s.nom),'Total stands']];
+    skus.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const vals=filteredStands.map(s=>{const d=PS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+      const total=vals.reduce((a,b)=>a+b,0);
+      if(total>0)rows.push([nom,fmt,unite,...vals,total]);
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Stock Stands');
+    XLSX.writeFile(wb,`stock_stands_${date}.xlsx`);
   }
   else if(id==='stock-derval'||id==='stock-baselog'||id==='stock-total'){
     const stockObj=id==='stock-derval'?CDERVAL:id==='stock-baselog'?CBASELOG:C;
