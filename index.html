@@ -277,28 +277,36 @@ pre{background:var(--bg);border:1px solid var(--border);border-radius:8px;paddin
 
 <!-- ══════════ STOCKS CENTRAUX ══════════ -->
 <div id="tab-stocks" class="tab-content">
-  <!-- Filtres stands -->
-  <div class="card mb12">
-    <div class="card-title"><span class="card-title-icon">🏪</span>Filtrer par stand <span style="font-size:11px;color:var(--text-muted);font-weight:400">(sans filtre = tout afficher)</span></div>
-    <div class="flex flex-wrap" style="gap:8px" id="stocks-stand-chips"></div>
-  </div>
+  <div style="display:flex;gap:14px;align-items:flex-start;">
 
-  <!-- 3 tableaux centraux -->
-  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(320px,1fr));gap:14px;min-width:960px;">
-      <div class="card" style="border-left:3px solid var(--orange)">
-        <div class="card-title" style="color:var(--orange);font-size:13px">🏭 CENTRAL DERVAL <button class="btn-xls" onclick="exportSheet('stock-derval')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock DERVAL','stock-derval-table')">↓ PDF</button></div>
-        <div id="stock-derval-table"></div>
-      </div>
-      <div class="card" style="border-left:3px solid var(--blue)">
-        <div class="card-title" style="color:var(--blue);font-size:13px">🏭 CENTRAL BASE LOG <button class="btn-xls" onclick="exportSheet('stock-baselog')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock BASE LOG','stock-baselog-table')">↓ PDF</button></div>
-        <div id="stock-baselog-table"></div>
-      </div>
-      <div class="card" style="border-left:3px solid var(--green)">
-        <div class="card-title" style="color:var(--green);font-size:13px">Σ TOTAL COMBINÉS <button class="btn-xls" onclick="exportSheet('stock-total')">↓ Excel</button> <button class="btn-pdf" onclick="printTablePDF('Stock Total Combiné','stock-total-table')">↓ PDF</button></div>
-        <div id="stock-total-table"></div>
+    <!-- COLONNE GAUCHE : filtres -->
+    <div style="width:220px;flex-shrink:0;">
+      <!-- Toggle mobile -->
+      <button class="btn btn-ghost btn-sm" id="stocks-filter-toggle" onclick="toggleStocksFilters()" style="display:none;width:100%;margin-bottom:8px">🔽 Filtres stands</button>
+
+      <div id="stocks-filters-panel" class="card" style="padding:12px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">Stands</div>
+        <div style="display:flex;flex-direction:column;gap:6px;" id="stocks-stand-chips"></div>
+
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">Mode</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+              <input type="radio" name="stocks-mode" value="unified" checked onchange="setStocksMode('unified')" style="cursor:pointer"> Unifié
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+              <input type="radio" name="stocks-mode" value="separate" onchange="setStocksMode('separate')" style="cursor:pointer"> Séparé
+            </label>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- COLONNE DROITE : tableaux -->
+    <div style="flex:1;min-width:0;overflow-x:auto;">
+      <div id="stocks-tables-wrap"></div>
+    </div>
+
   </div>
 </div>
 
@@ -2243,7 +2251,18 @@ function renderDashStand(){
 }
 function setDashStand(id){activeDashStand=id;renderDashStand();}
 
-let activeStocksStands=new Set(); // vide = pas de filtre = tout afficher
+let activeStocksStands=new Set();
+let activeStocksMode='unified';
+
+function setStocksMode(mode){activeStocksMode=mode;renderStocks();}
+
+function toggleStocksFilters(){
+  const p=document.getElementById('stocks-filters-panel');
+  const b=document.getElementById('stocks-filter-toggle');
+  const visible=p.style.display!=='none';
+  p.style.display=visible?'none':'';
+  b.textContent=visible?'🔽 Filtres stands':'🔼 Filtres stands';
+}
 
 function toggleStocksStand(sid){
   if(activeStocksStands.has(sid))activeStocksStands.delete(sid);
@@ -2254,61 +2273,106 @@ function toggleStocksStand(sid){
 function renderStocks(){
   const{CDERVAL,CBASELOG,C,skus,PS}=calc();
   const recu=totalRecu();
+  const isMobile=window.innerWidth<700;
 
-  // Chips stands
+  // Toggle mobile
+  const toggleBtn=document.getElementById('stocks-filter-toggle');
+  if(toggleBtn)toggleBtn.style.display=isMobile?'':'none';
+
+  // Chips stands (liste verticale)
   const chipsEl=document.getElementById('stocks-stand-chips');
   if(chipsEl){
-    chipsEl.innerHTML=state.stands.map(s=>
-      `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid ${activeStocksStands.has(s.id)?'var(--blue)':'var(--border)'};background:${activeStocksStands.has(s.id)?'var(--blue-dim)':'transparent'}">
-        <input type="checkbox" ${activeStocksStands.has(s.id)?'checked':''} onchange="toggleStocksStand('${s.id}')" style="width:14px;height:14px;cursor:pointer"> ${s.nom}
-      </label>`
-    ).join('');
+    chipsEl.innerHTML=state.stands.map(s=>{
+      const on=activeStocksStands.has(s.id);
+      return `<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;padding:4px 6px;border-radius:6px;border:1px solid ${on?'var(--blue)':'var(--border)'};background:${on?'var(--blue-dim)':'transparent'}">
+        <input type="checkbox" ${on?'checked':''} onchange="toggleStocksStand('${s.id}')" style="width:14px;height:14px;cursor:pointer"> ${s.nom}
+      </label>`;
+    }).join('');
   }
 
-  // Calculer les SKUs à afficher selon filtre stands
+  // Déterminer les SKUs filtrés
   let filteredSkus=skus;
   if(activeStocksStands.size>0){
-    // Garder seulement les SKUs qui ont du stock dans au moins un stand sélectionné
-    filteredSkus=skus.filter(k=>{
-      return [...activeStocksStands].some(sid=>{
+    filteredSkus=skus.filter(k=>
+      [...activeStocksStands].some(sid=>{
         const d=PS[sid]&&PS[sid][k]||{e:0,r:0,trf_out:0};
-        return d.e>0; // le produit a été distribué à ce stand
-      });
-    });
+        return d.e>0;
+      })
+    );
   }
 
-  if(!filteredSkus.length){
-    ['stock-derval-table','stock-baselog-table','stock-total-table'].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el)el.innerHTML='<div class="empty-state">Aucun produit</div>';
-    });
-    return;
-  }
+  const wrap=document.getElementById('stocks-tables-wrap');
+  if(!wrap)return;
 
-  function buildTable(stockObj,accentCol){
-    let h=`<table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th><th>Stock actuel</th></tr></thead><tbody>`;
-    filteredSkus.forEach(k=>{
+  // Construire un tableau central
+  function buildCentralTable(stockObj,accentCol,title,exportId,pdfId){
+    const rows=filteredSkus.map(k=>{
       const{nom,fmt,unite}=skuLabel(k);
       const v=stockObj[k]||0;
       const r=recu[k]||0;
       const pct=r>0?Math.round(v/r*100):0;
       const col=v>0?accentCol:'var(--text-muted)';
-      h+=`<tr>
+      return `<tr>
         <td><strong>${nom}</strong></td>
         <td><span class="badge badge-purple">${fmt||'—'}</span></td>
         <td class="mono text-muted" style="font-size:11px">${unite}</td>
         <td><span class="mono" style="color:${col};font-size:15px;font-weight:700">${v}</span>
         <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div></td>
       </tr>`;
-    });
-    return h+'</tbody></table>';
+    }).join('');
+    return `<div class="card" style="border-left:3px solid ${accentCol};min-width:280px">
+      <div class="card-title" style="color:${accentCol};font-size:13px">${title}
+        <button class="btn-xls" onclick="exportSheet('${exportId}')">↓ Excel</button>
+        <button class="btn-pdf" onclick="printTablePDF('${title}','${pdfId}')">↓ PDF</button>
+      </div>
+      <div id="${pdfId}"><table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th><th>Stock</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="empty-state">Aucun produit</td></tr>'}</tbody></table></div>
+    </div>`;
   }
-  const elD=document.getElementById('stock-derval-table');
-  const elB=document.getElementById('stock-baselog-table');
-  const elT=document.getElementById('stock-total-table');
-  if(elD)elD.innerHTML=buildTable(CDERVAL,'var(--orange)');
-  if(elB)elB.innerHTML=buildTable(CBASELOG,'var(--blue)');
-  if(elT)elT.innerHTML=buildTable(C,'var(--green)');
+
+  if(activeStocksStands.size<=1||activeStocksMode==='unified'){
+    // MODE UNIFIÉ : 3 colonnes centrales côte à côte
+    wrap.innerHTML=`<div style="display:grid;grid-template-columns:repeat(3,minmax(280px,1fr));gap:14px;">
+      ${buildCentralTable(CDERVAL,'var(--orange)','🏭 CENTRAL DERVAL','stock-derval','stock-derval-table')}
+      ${buildCentralTable(CBASELOG,'var(--blue)','🏭 CENTRAL BASE LOG','stock-baselog','stock-baselog-table')}
+      ${buildCentralTable(C,'var(--green)','Σ TOTAL COMBINÉS','stock-total','stock-total-table')}
+    </div>`;
+  } else {
+    // MODE SÉPARÉ : un groupe de 3 colonnes par stand sélectionné
+    const standsArr=[...activeStocksStands].map(sid=>state.stands.find(s=>s.id===sid)).filter(Boolean);
+    wrap.innerHTML=standsArr.map(stand=>{
+      // SKUs distribués à CE stand
+      const standSkus=skus.filter(k=>{
+        const d=PS[stand.id]&&PS[stand.id][k]||{e:0,r:0,trf_out:0};
+        return d.e>0;
+      });
+      const rows=standSkus.map(k=>{
+        const{nom,fmt,unite}=skuLabel(k);
+        const vD=CDERVAL[k]||0, vB=CBASELOG[k]||0, vT=C[k]||0;
+        const r=recu[k]||0;
+        const pct=r>0?Math.round(vT/r*100):0;
+        const col=vT>0?'var(--green)':'var(--text-muted)';
+        return `<tr>
+          <td><strong>${nom}</strong></td>
+          <td><span class="badge badge-purple">${fmt||'—'}</span></td>
+          <td class="mono text-muted" style="font-size:11px">${unite}</td>
+          <td class="mono" style="color:var(--orange)">${vD}</td>
+          <td class="mono" style="color:var(--blue)">${vB}</td>
+          <td><span class="mono" style="color:${col};font-weight:700">${vT}</span>
+          <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div></td>
+        </tr>`;
+      }).join('');
+      const tableId=`stocks-sep-${stand.id}`;
+      return `<div class="card mb12" style="border-left:3px solid var(--blue)">
+        <div class="card-title" style="color:var(--blue)">🏪 ${stand.nom}
+          <button class="btn-pdf" onclick="printTablePDF('${stand.nom}','${tableId}')">↓ PDF</button>
+        </div>
+        <div id="${tableId}" style="overflow-x:auto">
+          <table><thead><tr><th>Référence</th><th>Format</th><th>Unité</th><th style="color:var(--orange)">DERVAL</th><th style="color:var(--blue)">BASE LOG</th><th style="color:var(--green)">Total</th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="6" class="empty-state">Aucun produit distribué</td></tr>'}</tbody></table>
+        </div>
+      </div>`;
+    }).join('');
+  }
 }
 
 function renderRec(){
