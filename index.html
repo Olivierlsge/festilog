@@ -281,13 +281,14 @@ pre{background:var(--bg);border:1px solid var(--border);border-radius:8px;paddin
   <!-- COLONNE GAUCHE STICKY : filtres -->
   <div style="width:200px;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--border);padding:12px;background:var(--surface);">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px">Stands</div>
-    <div style="display:flex;flex-direction:column;gap:5px;" id="stocks-stand-chips"></div>
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost btn-sm" style="width:100%" onclick="activeStocksStands=new Set();renderStocks()">✕ Tout décocher</button>
+    <div style="display:flex;gap:4px;margin-bottom:8px">
+      <button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px" onclick="activeStocksStands=new Set(state.stands.map(s=>s.id));renderStocks()">✓ Tous</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px" onclick="activeStocksStands=new Set();renderStocks()">✕ Aucun</button>
     </div>
+    <div style="display:flex;flex-direction:column;gap:5px;" id="stocks-stand-chips"></div>
     <div style="margin-top:10px">
       <button class="btn-xls" style="width:100%;margin-bottom:6px" onclick="exportSheet('stocks-full')">↓ Excel</button>
-      <button class="btn-pdf" style="width:100%" onclick="printStocksPDF()">↓ PDF</button>
+      <button class="btn-pdf" style="width:100%" onclick="printTablePDF('Stocks','stocks-main-table')">↓ PDF</button>
     </div>
   </div>
 
@@ -2269,48 +2270,40 @@ function renderStocks(){
   if(!wrap)return;
   if(!skus.length){wrap.innerHTML='<div class="empty-state" style="padding:40px">Aucun mouvement</div>';return;}
 
-  // Colonnes : toujours DERVAL, BASELOG, TOTAL + les stands cochés
   const selectedStands=[...activeStocksStands].map(sid=>state.stands.find(s=>s.id===sid)).filter(Boolean);
 
-  // Construire le tableau unique
-  function cell(v,col,withBar=false,recu=0){
-    const pct=recu>0?Math.round(v/recu*100):0;
-    const bar=withBar&&recu>0?`<div class="progress-wrap" style="margin-top:3px"><div class="progress-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>`:'';
-    return `<td style="text-align:right;padding:6px 10px"><span style="color:${v>0?col:'var(--text-muted)'};font-weight:${v>0?'700':'400'};font-size:13px">${v}</span>${bar}</td>`;
+  function cell(v,col,r=0){
+    const pct=r>0?Math.round(v/r*100):0;
+    const bar=r>0?`<div class="progress-wrap" style="margin-top:3px"><div class="progress-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>`:'';
+    return `<td style="text-align:right;padding:6px 10px;border-right:1px solid var(--border)"><span style="color:${v>0?col:'var(--text-muted)'};font-weight:${v>0?'700':'400'};font-size:13px">${v}</span>${bar}</td>`;
   }
 
-  let h=`<table style="border-collapse:collapse;white-space:nowrap;">
+  let h=`<table id="stocks-main-table" style="border-collapse:collapse;white-space:nowrap;">
     <thead><tr>
-      <th style="position:sticky;left:0;z-index:2;background:var(--surface-2);padding:8px 12px;text-align:left;border-right:2px solid var(--border);min-width:180px">Référence</th>
-      <th style="padding:8px 10px;text-align:right;border-right:1px solid var(--border);color:var(--text-muted);font-size:11px">Format</th>
-      <th style="padding:8px 10px;text-align:right;border-right:1px solid var(--border);color:var(--text-muted);font-size:11px">Unité</th>
+      <th style="position:sticky;left:0;z-index:2;background:var(--surface-2);padding:8px 12px;text-align:left;border-right:2px solid var(--border);min-width:200px">Référence</th>
+      <th style="padding:8px 10px;text-align:center;border-right:1px solid var(--border);color:var(--text-muted);font-size:11px">Format</th>
+      <th style="padding:8px 10px;text-align:center;border-right:1px solid var(--border);color:var(--text-muted);font-size:11px">Unité</th>
       <th style="padding:8px 10px;text-align:right;border-right:1px solid var(--border);color:var(--orange)">🏭 DERVAL</th>
       <th style="padding:8px 10px;text-align:right;border-right:1px solid var(--border);color:var(--blue)">🏭 BASE LOG</th>
       <th style="padding:8px 10px;text-align:right;border-right:${selectedStands.length?'2px':'1px'} solid var(--border);color:var(--green)">Σ TOTAL</th>
-      ${selectedStands.map(s=>`<th style="padding:8px 10px;text-align:right;border-right:1px solid var(--border);color:var(--blue);font-size:11px">🏪 ${s.nom}</th>`).join('')}
-    </tr></thead>
-    <tbody>`;
+      ${selectedStands.map(s=>`<th style="padding:8px 10px;text-align:right;border-right:1px solid var(--border);color:var(--blue);font-size:11px;white-space:nowrap">🏪 ${s.nom}</th>`).join('')}
+    </tr></thead><tbody>`;
 
   skus.forEach(k=>{
     const{nom,fmt,unite}=skuLabel(k);
     const vD=CDERVAL[k]||0, vB=CBASELOG[k]||0, vT=C[k]||0;
     const r=recu[k]||0;
-    // Valeurs stands
     const standVals=selectedStands.map(s=>{
       const d=PS[s.id][k]||{e:0,r:0,trf_out:0};
       return d.e-d.r-d.trf_out;
     });
-    // Masquer si tout est à 0 et des stands sont sélectionnés
-    if(activeStocksStands.size>0&&standVals.every(v=>v===0)&&vT===0)return;
-    const rowBg=vT===0?'opacity:.5':'';
-    h+=`<tr style="${rowBg}" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
-      <td style="position:sticky;left:0;z-index:1;background:var(--surface);padding:6px 12px;border-right:2px solid var(--border)">
-        <strong style="font-size:13px">${nom}</strong>
-      </td>
-      <td style="padding:6px 10px;text-align:right;border-right:1px solid var(--border)"><span class="badge badge-purple">${fmt||'—'}</span></td>
-      <td style="padding:6px 10px;text-align:right;border-right:1px solid var(--border);color:var(--text-muted);font-size:11px">${unite}</td>
-      ${cell(vD,'var(--orange)',true,r)}
-      ${cell(vB,'var(--blue)',true,r)}
+    if(activeStocksStands.size>0 && standVals.every(v=>v===0) && vT===0)return;
+    h+=`<tr onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
+      <td style="position:sticky;left:0;z-index:1;background:var(--surface);padding:6px 12px;border-right:2px solid var(--border)"><strong style="font-size:13px">${nom}</strong></td>
+      <td style="padding:6px 10px;text-align:center;border-right:1px solid var(--border)"><span class="badge badge-purple">${fmt||'—'}</span></td>
+      <td style="padding:6px 10px;text-align:center;border-right:1px solid var(--border);color:var(--text-muted);font-size:11px">${unite}</td>
+      ${cell(vD,'var(--orange)',r)}
+      ${cell(vB,'var(--blue)',r)}
       <td style="text-align:right;padding:6px 10px;border-right:${selectedStands.length?'2px':'1px'} solid var(--border)">
         <span style="color:${vT>0?'var(--green)':'var(--text-muted)'};font-weight:${vT>0?'700':'400'};font-size:13px">${vT}</span>
         ${r>0?`<div class="progress-wrap" style="margin-top:3px"><div class="progress-bar" style="width:${Math.min(r>0?Math.round(vT/r*100):0,100)}%;background:var(--green)"></div></div>`:''}
@@ -2320,7 +2313,6 @@ function renderStocks(){
       </td>`).join('')}
     </tr>`;
   });
-
   h+='</tbody></table>';
   wrap.innerHTML=h;
 }
@@ -3355,13 +3347,20 @@ function exportSheet(id){
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Stock Stands');
     XLSX.writeFile(wb,`stock_stands_${date}.xlsx`);
   }
-  else if(id==='stock-derval'||id==='stock-baselog'||id==='stock-total'){
-    const stockObj=id==='stock-derval'?CDERVAL:id==='stock-baselog'?CBASELOG:C;
-    const nom=id==='stock-derval'?'DERVAL':id==='stock-baselog'?'BASE_LOG':'Total';
-    const rows=[['Référence','Format','Unité','Stock actuel']];
-    skus.forEach(k=>{const{nom:n,fmt,unite}=skuLabel(k);rows.push([n,fmt,unite,stockObj[k]||0]);});
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),`Stock ${nom}`);
-    XLSX.writeFile(wb,`stock_${nom}_${date}.xlsx`);
+  else if(id==='stocks-full'||id==='stock-derval'||id==='stock-baselog'||id==='stock-total'){
+    const{CDERVAL,CBASELOG,C:CT,skus:SKUs,PS:PSS}=calc();
+    const recuAll=totalRecu();
+    const selectedStands=[...activeStocksStands].map(sid=>state.stands.find(s=>s.id===sid)).filter(Boolean);
+    const header=['Référence','Format','Unité','DERVAL','BASE LOG','TOTAL',...selectedStands.map(s=>s.nom)];
+    const rows=[header];
+    SKUs.forEach(k=>{
+      const{nom,fmt,unite}=skuLabel(k);
+      const standVals=selectedStands.map(s=>{const d=PSS[s.id][k]||{e:0,r:0,trf_out:0};return d.e-d.r-d.trf_out;});
+      if(activeStocksStands.size>0&&standVals.every(v=>v===0)&&(CT[k]||0)===0)return;
+      rows.push([nom,fmt,unite,CDERVAL[k]||0,CBASELOG[k]||0,CT[k]||0,...standVals]);
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Stocks');
+    XLSX.writeFile(wb,`stocks_${date}.xlsx`);
   }
   else if(id==='historique'){
     const LBL={reception:'RÉC. CENTRAL',reception_stand:'RÉC. STAND',distribution:'DISTRIB.',transfert:'TRANSFERT',retour_stand:'RET. STAND',retour_fournisseurs:['RET. FOURN.']};
